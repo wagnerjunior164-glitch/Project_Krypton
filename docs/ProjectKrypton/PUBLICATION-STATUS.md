@@ -14,26 +14,16 @@ Verificações realizadas:
 
 - `Project_Krypton` permanece público e com `main` como branch padrão.
 - A branch `public-candidate` existe e está apontando para a sequência de commits da preparação pública.
-- A árvore da `public-candidate` contém somente os elementos de fundação inicialmente previstos antes da importação controlada, sem histórico privado do `ProjectKrypton`.
+- A árvore da `public-candidate` foi alimentada por commits controlados, sem importar o histórico privado do `ProjectKrypton`.
 - `SECURITY.md`, `.gitignore` e `docs/ProjectKrypton/PUBLICATION-STATUS.md` estão presentes.
 - O README inicial foi substituído por uma versão voltada à publicação pública, sem referências ao histórico privado como conteúdo versionado.
-- O repositório privado `ProjectKrypton` continua privado e não foi reescrito nem teve seu histórico exposto.
+- O repositório privado `ProjectKrypton` continua preservado.
 
-A verificação confirmou que a etapa anterior foi executada corretamente como **fundação**. Ela, porém, não significava que o código do projeto já tivesse sido importado; essa importação ainda não estava concluída.
+## Auditoria do lote de exportação do runner
 
-## Constatações que permanecem bloqueadoras
+A execução de auditoria `34250834831` foi usada como fonte de integridade para o lote KryptonPlay. O runner Windows exportou 24 arquivos e produziu SHA-256 localmente, permitindo que a importação fosse feita por seleção e comparação, em vez de copiar a árvore privada cegamente.
 
-A revisão do repositório privado confirmou que a importação integral ainda não pode ser feita sem sanitização adicional. Entre os pontos já identificados estão:
-
-- workflow de validação com `runs-on: [self-hosted, windows, x64]`;
-- credenciais fixas de teste/demonstração em arquivos do projeto;
-- caminhos específicos de ambiente, incluindo infraestrutura local do Windows;
-- documentação operacional privada e arquivos de staging/runner;
-- dependências Python sem versionamento completo;
-- necessidade de revisão das permissões dos workflows e de referências das Actions;
-- necessidade de revisão histórica independente antes de qualquer release pública.
-
-A documentação privada de publicação permanece a fonte do checklist detalhado; esta árvore pública não deve transformar um item pendente em item aprovado apenas porque um arquivo foi copiado.
+O workflow temporário não foi tratado como parte da árvore pública e continua separado da CI pública.
 
 ## Lotes importados
 
@@ -47,11 +37,11 @@ Foi importado e sanitizado um primeiro lote de documentação pública básica:
 - `MemoryProject/README.md`;
 - `KryptonOS Router/README.md`.
 
-Durante a importação, foram removidos ou generalizados detalhes específicos do ambiente, como o caminho local da biblioteca de mídia e referências a equipamento de laboratório. O conteúdo não foi importado cegamente.
+Durante a importação, foram removidos ou generalizados detalhes específicos do ambiente. O conteúdo não foi importado cegamente.
 
 ### Segundo lote — componentes KryptonPlay de baixo risco
 
-Após nova inspeção individual, foi importado um segundo lote pequeno e controlado:
+Após inspeção individual, foram mantidos/importados:
 
 - `KryptonPlay/diagnostics.py`;
 - `KryptonPlay/scanner.py`;
@@ -60,21 +50,73 @@ Após nova inspeção individual, foi importado um segundo lote pequeno e contro
 - `KryptonPlay/config/README.md`;
 - `KryptonPlay/config/config.json`.
 
-O `config.json` foi **higienizado**, substituindo o caminho absoluto específico de ambiente por `media`. Nenhum segredo ou credencial foi incluído.
+O `config.json` foi higienizado: o caminho privado `D:\\Midia` da exportação original foi substituído por `media`, e não foi transportado nenhum segredo.
 
-Este lote não inclui ainda `app.py`, `launcher.py`, workflows, scripts operacionais, arquivos de staging ou demais componentes de alto acoplamento. Esses itens continuam sujeitos a inspeção individual.
+### Terceiro lote — núcleo de execução e descoberta
 
-## Verificações após o segundo lote
+Foi realizada nova inspeção e foram adicionados à `public-candidate`:
 
-Foi realizada uma busca direcionada na árvore pública por indicadores que já haviam sido identificados na auditoria privada:
+- `KryptonPlay/launcher.py`;
+- `KryptonPlay/playback_info.py`;
+- `KryptonPlay/mdns_service.py`.
 
-- `D:\Midia` — não encontrado;
-- `TestPassword-123!` — não encontrado;
-- `Demo-KryptonPlay-2026` — não encontrado;
-- `self-hosted` — não encontrado;
-- `C:\Users\wagner` — não encontrado.
+`launcher.py` foi aceito porque o código usa caminhos derivados do próprio executável/projeto e não contém credenciais nem caminhos domésticos fixos no conteúdo auditado. O endereço de abertura utilizado pelo aplicativo é o hostname neutro `kryptonplay.local`.
 
-Essas buscas são evidências de uma varredura direcionada, não substituem a varredura final completa.
+`playback_info.py` foi aceito como camada de diagnóstico de reprodução autenticada e não contém segredos ou infraestrutura privada.
+
+`mdns_service.py` foi aceito porque anuncia somente o serviço local `KryptonPlay` e usa descoberta do endereço LAN em tempo de execução; não transporta IP doméstico fixo.
+
+Os SHA-256 observados no exportador para este lote foram registrados antes da importação:
+
+- `launcher.py`: `19f7608a01c6ac22696725cd323f15332546ccfb`;
+- `playback_info.py`: `0f6c138d14e34adfe3716c53f4b6c1863cdb81a9`;
+- `mdns_service.py`: `f68498bd99b9b17111e119a6323fea6798401939`.
+
+## Arquivos deliberadamente não importados nesta etapa
+
+Os seguintes componentes do lote de 24 arquivos permanecem sob revisão e **não devem ser considerados aprovados** apenas por terem sido recuperados pelo runner:
+
+- `app.py`;
+- `audio_fallback.py`;
+- `playback_pipeline.py`;
+- `playback_ui.py`;
+- `admin_features.py`;
+- `ui_runtime.py`;
+- `update_api.py`;
+- `update_service.py`;
+- `updater.py`;
+- `kryptonplay_fixes.py`;
+- `increment24_hardening.py`;
+- `version.py`;
+- `requirements.txt`;
+- `static/admin.html`;
+- `static/index.html`;
+- `static/player.html`;
+- `static/settings.html`;
+- `static/setup.html`.
+
+A razão é controle de acoplamento e segurança: vários desses arquivos participam de autenticação, administração, atualização automática, execução de subprocessos, UI dinâmica ou distribuição. Eles serão importados somente depois da análise de suas dependências e de sua compatibilidade com a árvore pública.
+
+## Constatação específica de configuração
+
+A exportação privada original continha o caminho absoluto:
+
+`D:\\Midia`
+
+Esse valor foi explicitamente bloqueado pela auditoria pública. A versão presente na `public-candidate` usa `media` e não expõe a estrutura de armazenamento doméstica.
+
+## Verificações realizadas
+
+Foram conferidos, entre outros pontos:
+
+- ausência do caminho privado `D:\\Midia` no `config.json` público;
+- ausência de credenciais e tokens nos arquivos importados deste lote;
+- ausência de IP doméstico fixo no `mdns_service.py`;
+- uso de `kryptonplay.local` como hostname neutro;
+- manutenção da branch `public-candidate` como área de preparação;
+- preservação do bloqueio de release até a conclusão da auditoria integral.
+
+Essas verificações são direcionadas e não substituem a varredura final completa.
 
 ## Critérios obrigatórios antes da release
 
@@ -100,4 +142,10 @@ Nenhum segredo deve ser considerado aceitável apenas por ser destinado a testes
 
 ## Próxima etapa
 
-Continuar a importação em lotes pequenos. O próximo grupo deve priorizar código necessário para formar uma unidade executável do KryptonPlay, mas somente depois da inspeção completa de suas dependências e da remoção de qualquer referência privada. Workflows e automações de CI continuam separados dessa etapa e não serão copiados até que tenham sido reescritos para o ambiente público.
+Continuar a importação em lotes pequenos, priorizando a unidade executável do KryptonPlay. Antes de importar o restante, devem ser resolvidas as dependências de `app.py`, reprodução/FFmpeg, administração, atualização automática e arquivos estáticos. Workflows e automações de CI continuam separados desta etapa e não serão copiados até que sejam reescritos para o ambiente público.
+
+## Aprovação
+
+**Status da árvore:** BLOQUEADA PARA RELEASE PÚBLICA FINAL.
+
+A documentação foi atualizada após o terceiro lote para registrar exatamente o que foi importado, o que foi sanitizado, o que permanece bloqueado e os critérios que ainda impedem a publicação.
