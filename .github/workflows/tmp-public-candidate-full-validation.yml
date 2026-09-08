@@ -1,0 +1,144 @@
+name: Temporary public-candidate Full Validation
+
+on:
+  push:
+    branches: [public-candidate]
+
+permissions:
+  contents: read
+
+jobs:
+  full:
+    runs-on: [self-hosted, windows, x64]
+    timeout-minutes: 90
+    steps:
+      - name: Checkout clean candidate
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Install pinned dependencies
+        shell: powershell -NoProfile -ExecutionPolicy Bypass -Command ". '{0}'"
+        run: |
+          $ErrorActionPreference = 'Stop'
+          py -3.12 -m pip install -q -r KryptonPlay\requirements.txt
+          py -3.12 -m pip install -q playwright
+          py -3.12 -m playwright install chromium
+
+      - name: Compile all Python sources
+        shell: cmd
+        run: |
+          chcp 65001 >nul
+          py -3.12 -m compileall -q KryptonPlay MemoryProject
+          if %ERRORLEVEL% NEQ 0 exit /b %ERRORLEVEL%
+
+      - name: Run KryptonPlay unit tests
+        shell: cmd
+        working-directory: KryptonPlay
+        run: |
+          chcp 65001 >nul
+          py -3.12 -m unittest discover -s tests -p "test_*.py" -v
+          if %ERRORLEVEL% NEQ 0 exit /b %ERRORLEVEL%
+
+      - name: Run MemoryProject tests when present
+        shell: powershell -NoProfile -ExecutionPolicy Bypass -Command ". '{0}'"
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $tests = Get-ChildItem -Path 'MemoryProject' -Recurse -Filter 'test_*.py' -File -ErrorAction SilentlyContinue
+          if ($tests.Count -eq 0) { Write-Host 'MemoryProject tests not present in public candidate; no tests executed.'; exit 0 }
+          py -3.12 -m unittest discover -s MemoryProject -p 'test_*.py' -v
+
+      - name: Prepare E2E media and environment
+        shell: powershell -NoProfile -ExecutionPolicy Bypass -Command ". '{0}'"
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $root = Join-Path $env:GITHUB_WORKSPACE 'KryptonPlay'
+          Set-Location $root
+          Remove-Item -Recurse -Force -ErrorAction SilentlyContinue 'data'
+          Remove-Item -Recurse -Force -ErrorAction SilentlyContinue 'test-library'
+          New-Item -ItemType Directory -Force -Path 'test-library\Filmes' | Out-Null
+          $ffmpeg = (Get-Command ffmpeg -ErrorAction Stop).Source
+          $ffprobe = (Get-Command ffprobe -ErrorAction Stop).Source
+          $media = Join-Path $root 'test-library\Filmes\Filme Teste.mp4'
+          & $ffmpeg -hide_banner -loglevel error -f lavfi -i 'color=c=black:s=320x240:r=1' -t 30 -an -c:v libx264 -pix_fmt yuv420p -movflags +faststart $media
+          if ($LASTEXITCODE -ne 0) { throw 'Falha ao gerar mídia E2E.' }
+          & $ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of default=noprint_wrappers=1 $media
+          if ($LASTEXITCODE -ne 0) { throw 'Mídia E2E inválida.' }
+          $password = [Convert]::ToBase64String((1..24 | ForEach-Object { Get-Random -Minimum 0 -Maximum 256 } | ForEach-Object { [byte]$_ })).Substring(0,24) + 'Aa1!'
+          "KRYPTONPLAY_TEST_LIBRARY=$root\test-library" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
+          "KRYPTONPLAY_ADMIN_PASSWORD=$password" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
+          "KRYPTONPLAY_TEST_PORT=18001" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
+          "KRYPTONPLAY_BASE_URL=http://127.0.0.1:18001" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Run real server E2E
+        shell: powershell -NoProfile -ExecutionPolicy Bypass -Command ". '{0}'"
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $root = Join-Path $env:GITHUB_WORKSPACE 'KryptonPlay'
+          $server = $null
+          try {
+            $server = Start-Process py -ArgumentList '-3.12 tests\run_e2e_server.py' -WorkingDirectory $root -PassThru -WindowStyle Hidden -RedirectStandardOutput 'server.log' -RedirectStandardError 'server-error.log'
+            $ready = $false
+            for ($i = 0; $i -lt 30; $i++) {
+              if ($server.HasExited) { throw "Servidor encerrou: $($server.ExitCode)" }
+              try { $health = Invoke-RestMethod "$env:KRYPTONPLAY_BASE_URL/health" -TimeoutSec 2; if ($health.status -eq 'ok') { $ready = $true; break } } catch { Start-Sleep 1 }
+            }
+            if (-not $ready) { throw 'Servidor não ficou pronto.' }
+            $setup = @{ username='admin'; password=$env:KRYPTONPLAY_ADMIN_PASSWORD; language='pt-BR'; region='BR'; timezone='America/Sao_Paulo'; server_name='KryptonPlay Full E2E'; network_access='local'; indexing_mode='later'; playback_mode='automatic'; libraries=@(@{name='Filmes';library_type='movie';locations=@($env:KRYPTONPLAY_TEST_LIBRARY)}) } | ConvertTo-Json -Depth 8 -Compress
+            $created = Invoke-RestMethod -Method Post -Uri "$env:KRYPTONPLAY_BASE_URL/api/setup" -ContentType 'application/json' -Body $setup
+            if ($created.status -ne 'ok') { throw 'Setup falhou.' }
+            $login = @{username='admin';password=$env:KRYPTONPLAY_ADMIN_PASSWORD} | ConvertTo-Json -Compress
+            $auth = Invoke-RestMethod -Method Post -Uri "$env:KRYPTONPLAY_BASE_URL/api/auth/login" -ContentType 'application/json' -Body $login
+            $headers = @{Authorization="Bearer $($auth.access_token)"}
+            try { Invoke-RestMethod -Method Post -Uri "$env:KRYPTONPLAY_BASE_URL/api/setup/diagnostics" -ContentType 'application/json' -Body '{}' -ErrorAction Stop; throw 'Diagnostics não autenticado deveria ser recusado.' } catch { if ($_.Exception.Response.StatusCode.value__ -ne 401) { throw } }
+            $diag = Invoke-RestMethod -Method Post -Uri "$env:KRYPTONPLAY_BASE_URL/api/setup/diagnostics" -Headers $headers -ContentType 'application/json' -Body '{}'
+            if ($diag.database -ne 'ok') { throw 'Diagnostics autenticado inválido.' }
+            $newUser = @{username='reset-test';password='Initial-Test-123!';role='user'} | ConvertTo-Json -Compress
+            $user = Invoke-RestMethod -Method Post -Uri "$env:KRYPTONPLAY_BASE_URL/api/v1/admin/users" -Headers $headers -ContentType 'application/json' -Body $newUser
+            $resetBody = @{new_password='Reset-Test-456!'} | ConvertTo-Json -Compress
+            $reset = Invoke-RestMethod -Method Post -Uri "$env:KRYPTONPLAY_BASE_URL/api/v1/admin/users/$([int]$user.id)/reset-password" -Headers $headers -ContentType 'application/json' -Body $resetBody
+            if ($reset.status -ne 'ok' -or $reset.PSObject.Properties.Name -contains 'temporary_password') { throw 'Contrato seguro de reset falhou.' }
+            $resetLogin = @{username='reset-test';password='Reset-Test-456!'} | ConvertTo-Json -Compress
+            $resetAuth = Invoke-RestMethod -Method Post -Uri "$env:KRYPTONPLAY_BASE_URL/api/auth/login" -ContentType 'application/json' -Body $resetLogin
+            if ([string]::IsNullOrWhiteSpace($resetAuth.access_token)) { throw 'Login após reset falhou.' }
+            $scan = Invoke-RestMethod -Method Post -Uri "$env:KRYPTONPLAY_BASE_URL/api/v1/library/scan" -Headers $headers
+            if ($scan.status -ne 'ok' -or $scan.items_scanned -ne 1) { throw "Scanner inválido: $($scan | ConvertTo-Json -Compress)" }
+            & py -3.12 tests\e2e_web_test.py
+            if ($LASTEXITCODE -ne 0) { throw 'Web E2E falhou.' }
+            Write-Host 'PUBLIC_CANDIDATE_FULL_E2E_OK'
+          } catch {
+            Get-Content (Join-Path $root 'server.log') -ErrorAction SilentlyContinue
+            Get-Content (Join-Path $root 'server-error.log') -ErrorAction SilentlyContinue
+            throw
+          } finally {
+            if ($server -and -not $server.HasExited) { Stop-Process -Id $server.Id -Force -ErrorAction SilentlyContinue }
+          }
+
+      - name: Build KryptonPlay and updater
+        shell: cmd
+        working-directory: KryptonPlay
+        run: |
+          chcp 65001 >nul
+          py -3.12 -m PyInstaller KryptonPlay.spec --clean --noconfirm --log-level ERROR
+          if %ERRORLEVEL% NEQ 0 exit /b %ERRORLEVEL%
+          py -3.12 -m PyInstaller KryptonPlay-Updater.spec --clean --noconfirm --log-level ERROR
+          if %ERRORLEVEL% NEQ 0 exit /b %ERRORLEVEL%
+          if not exist dist\KryptonPlay.exe exit /b 1
+          if not exist dist\KryptonPlay-Updater.exe exit /b 1
+
+      - name: Build Windows installer
+        shell: powershell -NoProfile -ExecutionPolicy Bypass -Command ". '{0}'"
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $iscc = Join-Path $env:LOCALAPPDATA 'Programs\Inno Setup 6\ISCC.exe'
+          if (-not (Test-Path $iscc)) { throw "Inno Setup não encontrado: $iscc" }
+          Push-Location KryptonPlay
+          try { & $iscc 'installer\KryptonPlay-Windows.iss'; if ($LASTEXITCODE -ne 0) { throw "ISCC falhou: $LASTEXITCODE" } }
+          finally { Pop-Location }
+          if (-not (Test-Path 'KryptonPlay\installer-output\KryptonPlay-Windows-Setup.exe')) { throw 'Instalador não foi gerado.' }
+          Write-Host 'VALIDACAO_BUILD_INSTALLER_PUBLIC_CANDIDATE_OK'
+
+      - name: Final marker
+        shell: powershell -NoProfile -ExecutionPolicy Bypass -Command ". '{0}'"
+        run: |
+          Write-Host 'VALIDACAO_FULL_PUBLIC_CANDIDATE_OK'
