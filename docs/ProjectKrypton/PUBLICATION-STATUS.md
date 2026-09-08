@@ -50,7 +50,7 @@ SHAs confirmados relevantes:
 
 ## Varredura independente de publicação — APROVADA
 
-A execução final `34261465639`, job `102180192398`, examinou `39` arquivos em clone limpo da branch pública e concluiu com **SUCCESS**, registrando `VALIDACAO_INDEPENDENTE_PUBLIC_CANDIDATE_OK`. Nenhum marcador proibido de segredo, credencial, caminho privado ou IPv4 LAN fixo foi encontrado.
+A execução `34261465639`, job `102180192398`, examinou `39` arquivos em clone limpo da branch pública e concluiu com **SUCCESS**, registrando `VALIDACAO_INDEPENDENTE_PUBLIC_CANDIDATE_OK`. Nenhum marcador proibido de segredo, credencial, caminho privado ou IPv4 LAN fixo foi encontrado.
 
 O relatório completo está em `docs/ProjectKrypton/PUBLICATION-BATCH-INDEPENDENT-SCAN-2026-09-08.md`.
 
@@ -86,41 +86,40 @@ O relatório detalhado está em `docs/ProjectKrypton/PUBLICATION-BATCH-BUILD-INS
 
 Foi criado o workflow temporário `.github/workflows/tmp-public-candidate-e2e-2026-09-08.yml`, diretamente em `public-candidate`, para executar no `PC` contra um clone limpo da árvore pública.
 
-O primeiro run `34268012381` ficou inicialmente bloqueado por seleção excessivamente específica de labels e foi posteriormente cancelado sem executar etapas. O workflow foi corrigido para usar os labels padrão `[self-hosted, windows, x64]`. Essa configuração é compatível com o modelo de roteamento documentado pelo GitHub, no qual o runner precisa possuir todos os labels especificados. citeturn0search4turn0search5
+O primeiro run `34268012381` ficou inicialmente bloqueado por seleção excessivamente específica de labels e foi posteriormente cancelado sem executar etapas. O workflow foi corrigido para usar os labels padrão `[self-hosted, windows, x64]`. Essa configuração é compatível com o modelo de roteamento documentado pelo GitHub, no qual o runner precisa possuir todos os labels especificados.
 
 A execução seguinte `34275017141` alcançou corretamente o runner `PC`, mas falhou na primeira etapa por causa da Execution Policy do Windows PowerShell. O workflow foi endurecido para executar cada script com `-NoProfile -ExecutionPolicy Bypass`, sem alterar a política global da máquina.
 
-A execução final `34275672859`, job `102227956236`, concluiu com **SUCCESS** no runner `PC` e confirmou:
-
-- clone limpo de `public-candidate`;
-- FFmpeg e FFprobe reais disponíveis;
-- geração de mídia H.264 de teste `320x240`, 30 segundos;
-- instalação das dependências;
-- inicialização real de `tests/run_e2e_server.py`;
-- health do servidor;
-- login administrativo e obtenção de token;
-- criação da biblioteca `CI E2E Library`;
-- scan da biblioteca com **1 item encontrado**;
-- status global `ok`;
-- componentes `server`, `database`, `library`, `storage`, `api` e `ffmpeg` em `ok`;
-- execução de `tests/e2e_web_test.py`;
-- marcador `PUBLIC_CANDIDATE_E2E_OK`;
-- marcador final `VALIDACAO_E2E_PUBLIC_CANDIDATE_OK`.
+A execução final `34275672859`, job `102227956236`, concluiu com **SUCCESS** no runner `PC` e confirmou clone limpo de `public-candidate`, FFmpeg/FFprobe reais, mídia H.264 `320x240` de 30 segundos, dependências, servidor, login, criação da biblioteca, scan com 1 item, status dos componentes, `tests/e2e_web_test.py`, `PUBLIC_CANDIDATE_E2E_OK` e `VALIDACAO_E2E_PUBLIC_CANDIDATE_OK`.
 
 A senha administrativa usada nessa execução foi gerada em runtime a partir do `github.run_id`, sem credencial fixa no workflow. O workflow continua temporário e será removido somente no encerramento da auditoria.
 
+## Full integrado — APROVADO COM ESCOPO EXPLÍCITO
+
+A execução `34276601584`, job `102236534720`, concluiu **SUCCESS** no runner `PC` e executou o nível `full`, incluindo documentação, testes MemoryProject, testes KryptonPlay, Web E2E, build Windows, PyInstaller, updater e installer.
+
+Essa execução foi feita no repositório privado, na branch temporária `tmp-final-full-validation-2026-09-08`, e portanto **não constitui prova de `full` diretamente sobre `public-candidate`**. Ela aprova a integração completa do conjunto correspondente; a árvore pública continua sujeita à conferência final e à repetição de qualquer validação necessária após as últimas alterações.
+
+O relatório está em `docs/ProjectKrypton/PUBLICATION-BATCH-FULL-VALIDATION-2026-09-08.md`.
+
 ## Pontos de segurança ainda em revisão
 
-A auditoria funcional anterior identificou pontos que continuam sujeitos à decisão de arquitetura antes da release: proteção/sanitização de `/api/setup/diagnostics`, tratamento deliberado de cookie de sessão HTTP local e fluxo de senha temporária/reset administrativo. Esses pontos não foram mascarados como resolvidos pela varredura de publicação ou pelos testes E2E.
+A auditoria confirmou que `/api/setup/diagnostics` permanece acessível durante o fluxo inicial de configuração e pode retornar informações sobre existência/permissões de caminhos fornecidos, além de caminhos locais de dados e ferramentas. Após a configuração, o endpoint deve ser restringido ao administrador ou substituído por uma interface autenticada equivalente antes de expor a aplicação fora do uso local controlado.
+
+O cookie de sessão usa `secure=False`. Isso é compatível com o modo HTTP local atualmente validado, mas não deve ser tratado como configuração adequada para publicação em HTTPS/LAN sem uma decisão explícita de transporte seguro.
+
+O endpoint administrativo de reset de senha invalida as sessões e retorna uma senha temporária ao administrador autenticado. O comportamento é funcional e deliberado no fluxo atual, mas a entrega dessa senha deve ser considerada parte do modelo de segurança antes de uma exposição pública.
+
+Nenhum desses pontos foi mascarado como resolvido pelos testes funcionais, E2E ou pela varredura independente.
 
 ## Pendências obrigatórias para a liberação final
 
-1. executar o nível `full`, incluindo a integração final do updater;
-2. repetir a varredura independente após todas as alterações finais;
-3. decidir e documentar o conjunto final de versões das dependências;
-4. resolver ou aprovar formalmente os três pontos de segurança/arquitetura ainda em revisão;
-5. realizar conferência final da árvore pública, histórico, branches e tags;
-6. confirmar novamente que nenhum dado específico do ambiente privado foi publicado;
+1. decidir e documentar o conjunto final de versões das dependências;
+2. resolver ou aprovar formalmente os três pontos de segurança/arquitetura ainda em revisão;
+3. repetir a varredura independente após todas as alterações finais;
+4. realizar conferência final da árvore pública, histórico, branches e tags;
+5. confirmar novamente que nenhum dado específico do ambiente privado foi publicado;
+6. executar/repetir validação final diretamente sobre `public-candidate` após as últimas alterações, se houver qualquer mudança de código/configuração;
 7. somente então aprovar a release/merge para `main`.
 
 Não remover testes, workflows ou branches temporários de auditoria agora. A limpeza será feita somente no encerramento da auditoria.
@@ -131,4 +130,4 @@ O procedimento operacional local documentado para iniciar o runner Windows `PC` 
 
 **Status da árvore:** BLOQUEADA PARA RELEASE PÚBLICA FINAL.
 
-**Última etapa concluída:** E2E real aprovado no runner `PC` após correção de roteamento e Execution Policy; build/installer e varredura independente também aprovados. Permanecem pendentes `full`, decisão das dependências, resolução/aprovação dos pontos de segurança, conferência final da árvore pública e limpeza controlada da auditoria.
+**Última etapa concluída:** full integrado aprovado no runner `PC` com escopo explicitamente privado, além de E2E real, build/installer e varredura independente aprovados diretamente sobre a árvore pública. Permanecem pendentes a decisão das dependências, resolução/aprovação dos pontos de segurança, nova varredura após alterações finais e conferência final da árvore/histórico.
