@@ -1,0 +1,105 @@
+name: KryptonPlay FFmpeg fallback smoke
+
+on:
+  push:
+    branches: [public-candidate]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    name: Windows FFmpeg fallback smoke
+    runs-on: [self-hosted, windows, x64]
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - name: Run FFmpeg fallback smoke test
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          chcp 65001 > $null
+          $python = (Get-Command py -ErrorAction Stop).Source
+          & $python -3.12 -c "import fastapi" 2>$null
+          if ($LASTEXITCODE -ne 0) {
+            & $python -3.12 -m pip install --disable-pip-version-check fastapi
+            if ($LASTEXITCODE -ne 0) { throw 'Falha ao instalar FastAPI para o smoke test.' }
+          }
+
+          $root = Join-Path $env:RUNNER_TEMP 'kryptonplay-fallback-smoke'
+          if (Test-Path $root) { Remove-Item -Recurse -Force $root }
+          New-Item -ItemType Directory -Path $root | Out-Null
+          $aacMp4 = Join-Path $root 'compatible-aac.mp4'
+          $ac3Mkv = Join-Path $root 'incompatible-ac3.mkv'
+
+          $ffmpeg = & $python -3.12 -c "import sys; sys.path.insert(0, 'KryptonPlay'); import audio_fallback; print(audio_fallback._bundled_tool('ffmpeg') or '')"
+          if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($ffmpeg)) { throw 'FFmpeg não foi localizado pelo projeto.' }
+          $ffprobe = & $python -3.12 -c "import sys; sys.path.insert(0, 'KryptonPlay'); import audio_fallback; print(audio_fallback._bundled_tool('ffprobe') or '')"
+          if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($ffprobe)) { throw 'FFprobe não foi localizado pelo projeto.' }
+
+          & $ffmpeg -hide_banner -loglevel error -y -f lavfi -i 'testsrc2=size=320x240:rate=10' -f lavfi -i 'sine=frequency=1000:sample_rate=48000' -t 2 -c:v libx264 -pix_fmt yuv420p -c:a aac -b:a 128k $aacMp4
+          if ($LASTEXITCODE -ne 0 -or -not (Test-Path $aacMp4)) { throw 'Falha ao gerar mídia AAC de teste.' }
+
+          & $ffmpeg -hide_banner -loglevel error -y -f lavfi -i 'testsrc2=size=320x240:rate=10' -f lavfi -i 'sine=frequency=1000:sample_rate=48000' -t 2 -c:v libx264 -pix_fmt yuv420p -c:a ac3 -b:a 192k $ac3Mkv
+          if ($LASTEXITCODE -ne 0 -or -not (Test-Path $ac3Mkv)) { throw 'Falha ao gerar mídia AC3 de teste.' }
+
+          $env:PYTHONUTF8 = '1'
+          & $python -3.12 -c @"
+          import sys
+          import tempfile
+          import threading
+          from pathlib import Path
+          sys.path.insert(0, 'KryptonPlay')
+          import audio_fallback
+          from playback_pipeline import decide_playback
+
+          root = Path(r'''$root''')
+          aac = root / 'compatible-aac.mp4'
+          ac3 = root / 'incompatible-ac3.mkv'
+
+          aac_probe = audio_fallback._probe_audio(aac)
+          aac_class = audio_fallback.classify_audio(aac)
+          assert aac_class['codec'] == 'aac', aac_class
+          assert aac_class['fallback_required'] is False, aac_class
+          assert decide_playback(aac_probe)['mode'] == 'direct-play', decide_playback(aac_probe)
+
+          ac3_probe = audio_fallback._probe_audio(ac3)
+          ac3_class = audio_fallback.classify_audio(ac3)
+          assert ac3_class['codec'] == 'ac3', ac3_class
+          assert ac3_class['fallback_required'] is True, ac3_class
+          decision = decide_playback(ac3_probe)
+          assert decision['mode'] == 'transcoding', decision
+          assert decision['reason'] == 'audio_codec_incompatible', decision
+
+          base = root / 'runtime'
+          source, state = audio_fallback.prepare_playback_source(base, 9001, ac3, True)
+          assert source is None, source
+          assert state['fallback_used'] is True, state
+          assert state['progressive_owner'] is True, state
+
+          chunks = []
+          event = state['transcode_event']
+          for chunk in audio_fallback._stream_progressive_fallback(ac3, Path(state['cache_path']), 9001, ac3_class['source_stream_index'], event):
+              chunks.append(chunk)
+          streamed = sum(len(c) for c in chunks)
+          cache = Path(state['cache_path'])
+          assert streamed > 0, streamed
+          assert cache.is_file() and cache.stat().st_size > 0, cache
+
+          cached_source, cached_state = audio_fallback.prepare_playback_source(base, 9001, ac3, True)
+          assert cached_source is None, cached_source
+          assert cached_state['cache_hit'] is True, cached_state
+          print('FFMPEG_FALLBACK_SMOKE_OK')
+          print(f'AAC mode={decide_playback(aac_probe)["mode"]}')
+          print(f'AC3 mode={decision["mode"]} reason={decision["reason"]}')
+          print(f'progressive_bytes={streamed} cache_bytes={cache.stat().st_size}')
+          "@
+          if ($LASTEXITCODE -ne 0) { throw 'Smoke test funcional do fallback FFmpeg falhou.' }
+
+          Write-Host 'VALIDACAO_FFMPEG_FALLBACK_OK'
+          Remove-Item -Recurse -Force $root -ErrorAction SilentlyContinue
