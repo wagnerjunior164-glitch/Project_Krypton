@@ -42,15 +42,15 @@ SHAs confirmados relevantes:
 - `static/settings.html`: `44a7cacf19c84d209eee666d2e50d9c9da829338`;
 - `static/setup.html`: `a022f052fddd752434d6de453e01d0be4d53f6f6`.
 
-## Varredura independente de publicação
+## Varredura independente de publicação — APROVADA
 
 Foi criado um workflow temporário no repositório privado para clonar a branch pública em ambiente limpo no runner `PC` e examinar todos os arquivos fora de `.git`.
 
-A primeira execução funcional, `34261206634`, chegou ao clone da árvore e encontrou somente referências ambientais em documentação histórica: um caminho de mídia específico e a identificação do repositório privado. Não foram encontrados tokens, chaves privadas, credenciais funcionais ou arquivos de segredo.
+A primeira execução funcional, `34261206634`, encontrou somente referências ambientais desnecessárias em documentação histórica: um caminho de mídia específico e a identificação do repositório privado. Não foram encontrados tokens, chaves privadas, credenciais funcionais ou arquivos de segredo. Essas referências foram removidas da documentação pública.
 
-As referências ambientais desnecessárias foram removidas da documentação pública. O relatório completo está em `docs/ProjectKrypton/PUBLICATION-BATCH-INDEPENDENT-SCAN-2026-09-08.md`.
+A execução final `34261465639`, job `102180192398`, examinou `39` arquivos e concluiu com **SUCCESS**, registrando `VALIDACAO_INDEPENDENTE_PUBLIC_CANDIDATE_OK`. Nenhum marcador proibido de segredo, credencial, caminho privado ou IPv4 LAN fixo foi encontrado.
 
-A execução final do mesmo gate ainda precisa concluir após a sanitização. Até esse registro ser confirmado pelo runner com `VALIDACAO_INDEPENDENTE_PUBLIC_CANDIDATE_OK`, a varredura permanece pendente.
+O relatório completo está em `docs/ProjectKrypton/PUBLICATION-BATCH-INDEPENDENT-SCAN-2026-09-08.md`.
 
 ## Pontos de segurança ainda em revisão
 
@@ -58,12 +58,11 @@ A auditoria funcional anterior identificou pontos que continuam sujeitos à deci
 
 ## Próximas etapas obrigatórias
 
-1. confirmar a execução final da varredura independente no runner `PC`;
-2. revisar completamente dependências e workflows/permissões, mantendo PRs não confiáveis fora de runners privados;
-3. executar validação funcional integrada;
-4. executar `build`, `installer` e `full`, incluindo integração real do instalador/updater;
-5. realizar conferência final da árvore, histórico, branches e tags públicos;
-6. somente então aprovar a release/merge para `main`.
+1. revisar completamente dependências e workflows/permissões, mantendo PRs não confiáveis fora de runners privados;
+2. executar validação funcional integrada;
+3. executar `build`, `installer` e `full`, incluindo integração real do instalador/updater;
+4. realizar conferência final da árvore, histórico, branches e tags públicos;
+5. somente então aprovar a release/merge para `main`.
 
 Não remover testes, workflows ou branches temporários de auditoria agora. A limpeza será feita somente no encerramento da auditoria.
 
@@ -73,4 +72,4 @@ O procedimento operacional local documentado para iniciar o runner Windows `PC` 
 
 **Status da árvore:** BLOQUEADA PARA RELEASE PÚBLICA FINAL.
 
-**Última etapa registrada:** varredura independente executada em clone limpo, identificação e remoção de referências ambientais desnecessárias da documentação pública; confirmação final do gate ainda pendente.
+**Última etapa concluída:** varredura independente de publicação aprovada no runner `PC`, após sanitização das referências ambientais da documentação pública.
