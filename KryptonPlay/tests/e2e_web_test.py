@@ -22,6 +22,7 @@ def wait_for_video_ready(video, timeout_ms=15000):
 
 
 def open_test_movie(page):
+    # Click the actual playback action, not the title heading.
     card = page.locator("article.card").filter(has_text="Filme Teste").first
     card.get_by_role("button", name="Reproduzir").click()
     page.locator("#player-area").wait_for(state="visible", timeout=15000)
@@ -119,6 +120,7 @@ def main():
         resumed = video.evaluate("v => v.currentTime")
         assert resumed > 0, f"Progresso não foi retomado: {resumed_state}, currentTime={resumed}"
 
+        # Verify that appearance and playback preferences persist through the real Web UI.
         verify_saved_preferences(page)
         verify_saved_playback_behavior(page)
 
