@@ -43,9 +43,10 @@ SHAs confirmados relevantes:
 - `static/setup.html`: `a022f052fddd752434d6de453e01d0be4d53f6f6`;
 - `KryptonPlay.spec`: `2cdbb4f4ccaca5ee88cad8d87735d3fe91687bd4`;
 - `KryptonPlay-Updater.spec`: `a0e7b00b6a75959df8ddf75f31c7b7556fd56a09`;
-- `installer/KryptonPlay-Windows.iss`: `904aeaaae52bcd235d4b080d2f0a10b68f2bdb80`;
+- `installer/KryptonPlay-Windows.iss`: `bbf7e26cf3aceee3d6515082edb9d88c8d4dbda2` após a correção `RunOnceId`;
 - `tests/e2e_web_test.py`: `23acfbf6158532d6e82ab0027c71d9cea9847796`;
-- `tests/run_e2e_server.py`: `4fd842404c5026c1fe88fec4e05533c11b136ac4`.
+- `tests/run_e2e_server.py`: `4fd842404c5026c1fe88fec4e05533c11b136ac4`;
+- `updater.py`: `15cc16f492edb1e8819160b5183cd8e6643b3da5`.
 
 ## Varredura independente de publicação — APROVADA
 
@@ -65,17 +66,36 @@ O manifesto continua sem versões fixadas. A execução confirmou compatibilidad
 
 `requirements.txt` contém apenas `fastapi`, `uvicorn[standard]` e `zeroconf`. A instalação e execução foram confirmadas no runner. A ausência de versões fixadas permanece como pendência de reprodutibilidade para a decisão final antes da release.
 
-A árvore `public-candidate` não contém workflows GitHub Actions públicos. Portanto, no estado atual, nenhum PR público executa código não confiável no runner self-hosted privado `PC`. Os workflows temporários de auditoria ficaram exclusivamente no repositório privado.
+A árvore `public-candidate` recebeu temporariamente `.github/workflows/tmp-public-candidate-e2e.yml` exclusivamente para executar o E2E real diretamente contra a árvore pública no runner `PC`. O workflow não contém credenciais fixas: a senha de E2E é gerada em runtime. Esse workflow é temporário e será removido no encerramento da auditoria.
 
-O relatório completo está em `docs/ProjectKrypton/PUBLICATION-BATCH-DEPENDENCIES-WORKFLOWS-2026-09-08.md`.
+O relatório completo de dependências/workflows permanece em `docs/ProjectKrypton/PUBLICATION-BATCH-DEPENDENCIES-WORKFLOWS-2026-09-08.md`.
 
-## Build/installer — FONTES PREPARADAS; GATE PENDENTE
+## Build/installer — APROVADO
 
-A árvore agora contém os specs de PyInstaller, o `.iss` do instalador e os harnesses E2E necessários para o pipeline Windows.
+A primeira execução `34262011642` encontrou a ausência real de `KryptonPlay/updater.py` no candidato. O arquivo foi importado integralmente e a tentativa seguinte do mesmo run, job `102188593169`, concluiu com **SUCCESS** no runner `PC`.
 
-O workflow temporário no repositório privado para executar build + installer no `PC` foi iniciado como run `34262011642`, job `102182033615`. No momento deste registro o job está **QUEUED**, portanto ainda não há aprovação de build/installer.
+Foram confirmados `KryptonPlay.exe`, `KryptonPlay-Updater.exe`, `WINDOWS_BUILD_OK`, Inno Setup 6.7.3, `KryptonPlay-Windows-Setup.exe`, `WINDOWS_INSTALLER_OK` e `VALIDACAO_BUILD_INSTALLER_PUBLIC_CANDIDATE_OK`.
 
-O relatório está em `docs/ProjectKrypton/PUBLICATION-BATCH-BUILD-INSTALLER-2026-09-08.md`.
+A compilação também revelou um aviso do Inno Setup sobre `[UninstallRun]` sem `RunOnceId`; a configuração foi corrigida para `RunOnceId: "KryptonPlayTaskKill"`. O SHA atual do `.iss` é `bbf7e26cf3aceee3d6515082edb9d88c8d4dbda2`.
+
+O PyInstaller registrou aviso operacional de execução como administrador. O aviso não causou falha e não foi mascarado por alteração do código; fica registrado como característica do ambiente do runner `PC`.
+
+O relatório detalhado está em `docs/ProjectKrypton/PUBLICATION-BATCH-BUILD-INSTALLER-2026-09-08.md`.
+
+## E2E real — AGUARDANDO RUNNER
+
+Foi criado o workflow temporário `tmp-public-candidate-e2e.yml`, diretamente em `public-candidate`, para executar no `PC`:
+
+- FFmpeg/FFprobe reais;
+- geração de mídia de teste;
+- instalação de Playwright/Chromium;
+- inicialização real de `run_e2e_server.py`;
+- setup inicial e criação de administrador em runtime;
+- login/token;
+- scan da biblioteca;
+- execução de `tests/e2e_web_test.py` sobre a UI real, incluindo reprodução, progresso/resume e persistência de preferências.
+
+Run `34265636391`, job `102194170188`: **QUEUED** no momento deste registro. Portanto, **E2E ainda não está aprovado**.
 
 ## Pontos de segurança ainda em revisão
 
@@ -83,11 +103,12 @@ A auditoria funcional anterior identificou pontos que continuam sujeitos à deci
 
 ## Próximas etapas obrigatórias
 
-1. aguardar/concluir `build` e `installer` no runner `PC`;
-2. decidir e documentar o conjunto final de versões das dependências;
-3. executar `full`, incluindo E2E real e integração final do updater;
-4. realizar conferência final da árvore, histórico, branches e tags públicos;
-5. somente então aprovar a release/merge para `main`.
+1. concluir o E2E real no runner `PC`;
+2. executar o nível `full`, incluindo integração final do updater;
+3. repetir a varredura independente após as alterações finais;
+4. decidir e documentar o conjunto final de versões das dependências;
+5. realizar conferência final da árvore, histórico, branches e tags públicos;
+6. somente então aprovar a release/merge para `main`.
 
 Não remover testes, workflows ou branches temporários de auditoria agora. A limpeza será feita somente no encerramento da auditoria.
 
@@ -97,4 +118,4 @@ O procedimento operacional local documentado para iniciar o runner Windows `PC` 
 
 **Status da árvore:** BLOQUEADA PARA RELEASE PÚBLICA FINAL.
 
-**Última etapa concluída:** varredura independente, validação funcional integrada e revisão de dependências/workflows aprovadas/concluídas; build/installer aguardando runner e `full`/auditoria final ainda pendentes.
+**Última etapa concluída:** build/installer aprovado após correção de `updater.py` e endurecimento do `.iss`; E2E real iniciado e aguardando o runner `PC`; `full`, auditoria final e limpeza ainda pendentes.
