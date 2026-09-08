@@ -66,10 +66,23 @@ jobs:
             $auth = Invoke-RestMethod -Method Post -Uri "$env:KRYPTONPLAY_BASE_URL/api/auth/login" -ContentType 'application/json' -Body $login
             if ([string]::IsNullOrWhiteSpace($auth.access_token)) { throw 'Login E2E falhou.' }
             $headers = @{ Authorization = "Bearer $($auth.access_token)" }
+            try { Invoke-RestMethod -Method Post -Uri "$env:KRYPTONPLAY_BASE_URL/api/setup/diagnostics" -ContentType 'application/json' -Body '{}' -ErrorAction Stop; throw 'Diagnostics deveria exigir autenticação após setup.' } catch { if ($_.Exception.Response.StatusCode.value__ -ne 401) { throw } }
+            $diag = Invoke-RestMethod -Method Post -Uri "$env:KRYPTONPLAY_BASE_URL/api/setup/diagnostics" -Headers $headers -ContentType 'application/json' -Body '{}'
+            if ($diag.database -ne 'ok') { throw 'Diagnostics autenticado inesperado.' }
+            $new_user = @{ username = 'reset-test'; password = 'Initial-Test-123!', role = 'user' } | ConvertTo-Json -Compress
+            $created_user = Invoke-RestMethod -Method Post -Uri "$env:KRYPTONPLAY_BASE_URL/api/v1/admin/users" -Headers $headers -ContentType 'application/json' -Body $new_user
+            $reset_id = [int]$created_user.id
+            $reset = @{ new_password = 'Reset-Test-456!' } | ConvertTo-Json -Compress
+            $reset_result = Invoke-RestMethod -Method Post -Uri "$env:KRYPTONPLAY_BASE_URL/api/v1/admin/users/$reset_id/reset-password" -Headers $headers -ContentType 'application/json' -Body $reset
+            if ($reset_result.status -ne 'ok' -or $reset_result.PSObject.Properties.Name -contains 'temporary_password') { throw 'Reset de senha não respeitou o contrato seguro.' }
+            $reset_login = @{ username = 'reset-test'; password = 'Reset-Test-456!' } | ConvertTo-Json -Compress
+            $reset_auth = Invoke-RestMethod -Method Post -Uri "$env:KRYPTONPLAY_BASE_URL/api/auth/login" -ContentType 'application/json' -Body $reset_login
+            if ([string]::IsNullOrWhiteSpace($reset_auth.access_token)) { throw 'Login após reset falhou.' }
             $scan = Invoke-RestMethod -Method Post -Uri "$env:KRYPTONPLAY_BASE_URL/api/v1/library/scan" -Headers $headers
             if ($scan.status -ne 'ok' -or $scan.items_scanned -ne 1) { throw "Scanner E2E inesperado: $($scan | ConvertTo-Json -Compress)" }
             & py -3.12 tests\e2e_web_test.py
             if ($LASTEXITCODE -ne 0) { throw 'E2E Web falhou.' }
+            Write-Host 'PUBLIC_CANDIDATE_E2E_SECURITY_OK'
             Write-Host 'PUBLIC_CANDIDATE_E2E_OK'
           } catch {
             Write-Host '--- server.log ---'
