@@ -62,6 +62,11 @@ if os.name == "nt" and ffmpeg_dir != ffprobe_dir:
         f"{ffmpeg_dir} != {ffprobe_dir}."
     )
 
+# FFmpeg 9 Windows builds may be self-contained and ship no DLL files beside
+# the executables. When DLLs are present, include them; when they are absent,
+# PyInstaller still receives ffmpeg.exe/ffprobe.exe as binaries and can analyze
+# their native dependencies. The absence of side-by-side DLLs must not make a
+# valid static FFmpeg build fail.
 ffmpeg_runtime_dir = ffmpeg_dir
 ffmpeg_dlls = sorted(
     path for path in ffmpeg_runtime_dir.rglob("*")
@@ -105,5 +110,8 @@ exe = EXE(
     strip=False,
     upx=True,
     console=False,
+    # The application itself requests elevation when launched. This is
+    # intentionally independent from the install location configured by the
+    # Inno Setup installer.
     uac_admin=True,
 )
