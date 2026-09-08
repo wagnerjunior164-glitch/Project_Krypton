@@ -130,11 +130,49 @@ Portanto, a validação funcional real de FFmpeg deste lote **não está mais pe
 
 Na etapa anterior, uma cópia truncada de `audio_fallback.py` chegou a ser criada por engano. Ela foi removida imediatamente no commit `985b7291ce5b322ffc5f9015ca771f62fdcbcb2f`. A versão atualmente presente na `public-candidate` é uma nova importação integral da fonte privada auditada e não deriva daquela cópia truncada.
 
+### Validação de `app.py` contra a árvore pública candidata
+
+Foi executada a validação funcional da aplicação candidata no runner Windows `PC` por meio da execução `34255010907` do workflow privado `Unified validation`.
+
+A execução foi feita em `main` do repositório privado, no commit `2a3924eda0b0ec1eb3b041df66d411a19a443316`, e o teste temporário clona explicitamente `wagnerjunior164-glitch/Project_Krypton`, branch `public-candidate`, em um diretório temporário. Assim, o processo não testou uma cópia privada de `app.py`: ele iniciou o `app.py` efetivamente presente na árvore pública candidata.
+
+O smoke test usa HTTP real contra um processo `uvicorn app:app` iniciado no próprio Windows runner, sem `TestClient`/`httpx`. Foram exercitados:
+
+- inicialização real do `app.py`;
+- `GET /health`;
+- `GET /api/setup/status`;
+- `GET /api/auth/users`;
+- login do usuário `admin` com senha efêmera exclusiva do runner;
+- autenticação por Bearer token;
+- `GET /api/auth/me`;
+- `GET /api/v1/settings`;
+- `GET /api/v1/libraries`;
+- `GET /api/v1/library`;
+- `GET /api/v1/status`;
+- `POST /api/v1/library/scan`;
+- `POST /api/auth/logout`;
+- confirmação de `401` após logout em `/api/auth/me`.
+
+A implementação do teste temporário registra explicitamente `PUBLIC_CANDIDATE_APP_SMOKE_OK` somente depois de todos esses asserts passarem. O código do teste confirma essa marca de sucesso e também confirma o uso de `public-candidate`, `uvicorn`, `urllib` e `sys.executable`. fileciteturn189file0L2-L6
+
+No run `34255010907`, a etapa `Run unified validation` registrou:
+
+- arquivo alterado selecionado: `KryptonPlay/tests/test_public_candidate_app.py`;
+- `19 passed in 25.29s`;
+- `KryptonPlay unit/functional tests — PASS`;
+- `KryptonPlay Web E2E — PASS`;
+- `Resultado: CONCLUIDO`.
+
+O log do runner não reproduz a linha `PUBLIC_CANDIDATE_APP_SMOKE_OK` porque a execução é feita pelo pytest e a saída de `print` do teste não é exibida nesse nível de captura. Portanto, a evidência decisiva é a combinação do teste presente no commit executado e o resultado de `19 passed`, não uma alegação baseada apenas no nome da etapa. O teste só chega ao `print` final depois dos asserts descritos acima. fileciteturn189file0L2-L6
+
+O upload do relatório JSON falhou posteriormente por quota de armazenamento de artefatos do GitHub (`Artifact storage quota has been hit`). Isso ocorreu depois de `Run unified validation` ter concluído com sucesso e não invalida os testes executados. O próprio job registrou que o relatório existia localmente antes da tentativa de upload.
+
+**Conclusão desta etapa:** `app.py` está **validado funcionalmente contra a árvore pública candidata**, incluindo inicialização, autenticação, endpoints principais, scan e invalidação de sessão no runner Windows `PC`. Essa validação não constitui ainda aprovação de release, pois permanecem a auditoria dos demais arquivos, a reconciliação da documentação de hash/scrypt versus PBKDF2-SHA256, a varredura final independente e a validação final de build/installer.
+
 ## Arquivos deliberadamente não importados nesta etapa
 
 Os seguintes componentes do lote original de 24 arquivos permanecem sob revisão:
 
-- `KryptonPlay/app.py`;
 - `KryptonPlay/playback_ui.py`;
 - `KryptonPlay/admin_features.py`;
 - `KryptonPlay/ui_runtime.py`;
@@ -173,7 +211,8 @@ Foram conferidos, entre outros pontos:
 - preservação do bloqueio de release até a conclusão da auditoria integral;
 - remoção da cópia truncada anterior de `audio_fallback.py`;
 - importação integral de `audio_fallback.py` e `playback_pipeline.py` após recuperação direta dos blobs da fonte privada;
-- execução funcional real de FFmpeg/FFprobe no runner Windows `PC` contra a árvore pública candidata.
+- execução funcional real de FFmpeg/FFprobe no runner Windows `PC` contra a árvore pública candidata;
+- execução funcional real de `app.py` no runner Windows `PC` contra a branch pública `public-candidate`.
 
 Essas verificações são direcionadas e não substituem a varredura final completa.
 
@@ -201,7 +240,7 @@ Nenhum segredo deve ser considerado aceitável apenas por ser destinado a testes
 
 ## Próxima etapa
 
-Continuar com `app.py` e, em seguida, os componentes de administração, runtime, atualização e UI. A partir deste ponto, o lote de reprodução/FFmpeg já possui uma validação funcional real específica aprovada no runner Windows. Ainda não se deve considerar isso uma validação E2E completa da aplicação.
+Continuar com `playback_ui.py` e, em seguida, os componentes de administração, runtime, atualização e UI. `app.py` agora possui validação funcional específica aprovada contra a árvore pública candidata no runner Windows. A partir deste ponto, os próximos arquivos devem ser auditados considerando o acoplamento já confirmado com `app.py`.
 
 Quando a árvore candidata estiver completa e auditada, a validação funcional integrada, build e installer serão executadas no `main`, antes da release. Workflows e automações de CI continuam separados desta etapa e não serão copiados até que sejam reescritos para o ambiente público.
 
@@ -209,4 +248,4 @@ Quando a árvore candidata estiver completa e auditada, a validação funcional 
 
 **Status da árvore:** BLOQUEADA PARA RELEASE PÚBLICA FINAL.
 
-A documentação foi atualizada após a validação funcional do quarto lote para registrar a execução real no runner Windows, seus resultados, as correções exclusivamente no workflow de teste e a permanência dos demais arquivos sob revisão.
+A documentação foi atualizada após a validação funcional de `app.py` para registrar a execução `34255010907`, o commit privado de teste, a confirmação de que o teste clona e executa a `public-candidate`, os endpoints cobertos, o resultado de `19 passed` e a limitação posterior de quota de artefatos. 
