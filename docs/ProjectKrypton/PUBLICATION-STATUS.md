@@ -23,11 +23,11 @@ Verificações realizadas:
 
 A execução de auditoria `34250834831` foi usada como fonte de integridade para o lote KryptonPlay. O runner Windows exportou 24 arquivos e produziu SHA-256 localmente, permitindo que a importação fosse feita por seleção e comparação, em vez de copiar a árvore privada cegamente.
 
-O workflow temporário não foi tratado como parte da árvore pública e continua separado da CI pública.
+O workflow temporário de exportação não foi tratado como parte da árvore pública e continua separado da CI pública.
 
 ## Lotes importados
 
-### Primeiro lote — fundação e documentação pública
+### Primeiro lote — fundação e documentação pública básica
 
 Foi importado e sanitizado um primeiro lote de documentação pública básica:
 
@@ -70,13 +70,11 @@ Os SHA-256 observados no exportador para este lote foram registrados antes da im
 
 - `launcher.py`: `19f7608a01c6ac22696725cd323f15332546ccfb`;
 - `playback_info.py`: `0f6c138d14e34adfe3716c53f4b6c1863cdb81a9`;
-- `mdns_service.py`: `f68498bd99b9b17111e119a6323fea6798401939`.
+- `mdns_service.py`: `f68498bd99b9b17111e119a6323fea679840193`.
 
 ### Quarto lote — reprodução/FFmpeg
 
-Foi concluída a auditoria de `audio_fallback.py` e `playback_pipeline.py` e, conforme autorizado, **não foi realizado teste funcional real de FFmpeg nesta fase**. A validação funcional será feita posteriormente, depois que a árvore estiver pronta no `main`.
-
-Os dois arquivos foram importados integralmente para `public-candidate`, preservando o conteúdo da fonte privada auditada e sem transportar o histórico Git privado:
+Foi concluída a auditoria de `audio_fallback.py` e `playback_pipeline.py`. Os dois arquivos foram importados integralmente para `public-candidate`, preservando o conteúdo da fonte privada auditada e sem transportar o histórico Git privado:
 
 - `KryptonPlay/audio_fallback.py` — blob público `b2ed6fa841c2df9d2c12544a6cdb640300c293a0`;
 - `KryptonPlay/playback_pipeline.py` — blob público `d1b35a4b732f5126290ab2e40699dc35605b045a`.
@@ -91,7 +89,42 @@ A análise estática deste lote confirmou:
 - ausência de credenciais, tokens ou IP doméstico fixo no conteúdo auditado;
 - integração direta com o endpoint `/api/v1/media/{media_id}/stream`.
 
-**Validação funcional real fica deliberadamente pendente** e será executada somente na fase posterior em `main`, conforme definido para esta preparação.
+### Validação funcional real no runner Windows
+
+Após a autorização para usar o runner sempre que necessário, foi executado um smoke test funcional real no runner Windows `PC`, usando a própria árvore pública `Project_Krypton/public-candidate` como fonte de código.
+
+A execução efetivamente validada foi a `34253339675`, no repositório privado, por meio de um workflow temporário isolado. O workflow fez checkout do commit público `7f40e1793da013fcc3102109c316f93102382c46` da `public-candidate` e executou no Windows os componentes `audio_fallback.py` e `playback_pipeline.py`.
+
+O teste cobriu, de forma efetiva:
+
+- localização de `ffmpeg` e `ffprobe` pelo mecanismo usado pelo projeto;
+- geração real de mídia curta H.264 + AAC;
+- geração real de mídia curta H.264 + AC3;
+- análise real via FFprobe;
+- classificação AAC como compatível, sem fallback;
+- decisão de AAC como `direct-play`;
+- classificação AC3 como incompatível;
+- decisão de AC3 como `transcoding`, com razão `audio_codec_incompatible`;
+- execução real do fallback progressivo, convertendo o áudio AC3 para AAC;
+- geração e existência do cache `.m4a`;
+- leitura posterior do mesmo cache como `cache_hit`.
+
+Resultado observado no runner:
+
+- `FFMPEG_FALLBACK_SMOKE_OK`;
+- `AAC mode=direct-play`;
+- `AC3 mode=transcoding reason=audio_codec_incompatible`;
+- `progressive_bytes=84242`;
+- `cache_bytes=40068`;
+- `VALIDACAO_FFMPEG_FALLBACK_OK`.
+
+A execução terminou com **sucesso** no job do runner `PC`.
+
+Houve duas correções somente no workflow temporário de teste antes do sucesso: a primeira execução encontrou a política de execução do PowerShell do runner; a segunda completou a lógica funcional, mas falhou apenas por uma saída de diagnóstico incompatível com o parsing do PowerShell. Nenhuma dessas ocorrências indicou falha do código KryptonPlay. A terceira execução foi a válida e terminou aprovada.
+
+O workflow temporário usado no repositório privado não faz parte da árvore pública. A tentativa inicial de workflow diretamente na `public-candidate` ficou sem runner público disponível e foi removida; o teste válido foi então executado no runner privado `PC`, fazendo checkout explícito da árvore pública. O workflow público temporário também foi removido após a validação.
+
+Portanto, a validação funcional real de FFmpeg deste lote **não está mais pendente**: ela foi executada e aprovada para os cenários cobertos acima. Isso não substitui a validação E2E completa da aplicação nem a validação final de build/installer.
 
 ### Correção da cópia truncada anterior
 
@@ -139,7 +172,8 @@ Foram conferidos, entre outros pontos:
 - manutenção da branch `public-candidate` como área de preparação;
 - preservação do bloqueio de release até a conclusão da auditoria integral;
 - remoção da cópia truncada anterior de `audio_fallback.py`;
-- importação integral de `audio_fallback.py` e `playback_pipeline.py` após recuperação direta dos blobs da fonte privada.
+- importação integral de `audio_fallback.py` e `playback_pipeline.py` após recuperação direta dos blobs da fonte privada;
+- execução funcional real de FFmpeg/FFprobe no runner Windows `PC` contra a árvore pública candidata.
 
 Essas verificações são direcionadas e não substituem a varredura final completa.
 
@@ -167,12 +201,12 @@ Nenhum segredo deve ser considerado aceitável apenas por ser destinado a testes
 
 ## Próxima etapa
 
-Continuar com `app.py` e, em seguida, os componentes de administração, runtime, atualização e UI. O objetivo agora é fechar as dependências da unidade executável sem realizar ainda os testes funcionais reais de FFmpeg. Quando a árvore candidata estiver completa e auditada, a validação funcional/build será executada posteriormente no `main`, antes da release.
+Continuar com `app.py` e, em seguida, os componentes de administração, runtime, atualização e UI. A partir deste ponto, o lote de reprodução/FFmpeg já possui uma validação funcional real específica aprovada no runner Windows. Ainda não se deve considerar isso uma validação E2E completa da aplicação.
 
-Workflows e automações de CI continuam separados desta etapa e não serão copiados até que sejam reescritos para o ambiente público.
+Quando a árvore candidata estiver completa e auditada, a validação funcional integrada, build e installer serão executadas no `main`, antes da release. Workflows e automações de CI continuam separados desta etapa e não serão copiados até que sejam reescritos para o ambiente público.
 
 ## Aprovação
 
 **Status da árvore:** BLOQUEADA PARA RELEASE PÚBLICA FINAL.
 
-A documentação foi atualizada após o quarto lote para registrar a importação integral dos componentes de reprodução, a decisão explícita de adiar os testes funcionais reais e os arquivos que ainda permanecem sob revisão.
+A documentação foi atualizada após a validação funcional do quarto lote para registrar a execução real no runner Windows, seus resultados, as correções exclusivamente no workflow de teste e a permanência dos demais arquivos sob revisão.
