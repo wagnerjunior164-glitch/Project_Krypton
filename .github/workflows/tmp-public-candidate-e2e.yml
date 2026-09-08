@@ -16,7 +16,7 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Prepare E2E environment
-        shell: powershell
+        shell: powershell -NoProfile -ExecutionPolicy Bypass -Command ". '{0}'"
         run: |
           $ErrorActionPreference = 'Stop'
           $root = Join-Path $env:GITHUB_WORKSPACE 'KryptonPlay'
@@ -38,7 +38,7 @@ jobs:
           "KRYPTONPLAY_BASE_URL=http://127.0.0.1:18001" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
 
       - name: Install test dependencies
-        shell: powershell
+        shell: powershell -NoProfile -ExecutionPolicy Bypass -Command ". '{0}'"
         run: |
           $ErrorActionPreference = 'Stop'
           py -3.12 -m pip install -q -r KryptonPlay\requirements.txt
@@ -46,7 +46,7 @@ jobs:
           py -3.12 -m playwright install chromium
 
       - name: Start server and run real Web E2E
-        shell: powershell
+        shell: powershell -NoProfile -ExecutionPolicy Bypass -Command ". '{0}'"
         run: |
           $ErrorActionPreference = 'Stop'
           $root = Join-Path $env:GITHUB_WORKSPACE 'KryptonPlay'
