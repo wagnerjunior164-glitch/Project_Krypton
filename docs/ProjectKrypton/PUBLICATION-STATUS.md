@@ -136,7 +136,9 @@ O arquivo contém apenas o middleware de compatibilidade Starlette e não aprese
 
 A fonte privada de `KryptonPlay/admin_features.py` foi recuperada e importada integralmente para `public-candidate`.
 
-- SHA privado: `c55c10f4ac7df17226a8442062531a7961ab1d` não se aplica a este arquivo; a fonte privada de `admin_features.py` foi confirmada pelo conteúdo e o blob público atual é `d1abac473336b22a2f52fa094ccc90de84608a25`.
+- SHA privado: `d1abac473336b22a2f52fa094ccc90de84608a25`;
+- SHA público: `d1abac473336b22a2f52fa094ccc90de84608a25`;
+- resultado: **conteúdo integral confirmado**;
 - não foram identificadas credenciais, tokens, IPs domésticos ou caminhos privados no conteúdo auditado;
 - endpoints administrativos usam `require_admin`;
 - configurações de atualização, notificações, fuso horário, relógio e reinício estão protegidas por autenticação apropriada;
