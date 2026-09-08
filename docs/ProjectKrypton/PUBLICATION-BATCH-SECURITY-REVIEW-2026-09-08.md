@@ -2,48 +2,53 @@
 
 Data: 2026-09-08
 
-## Escopo
-
-Revisão direcionada dos pontos de segurança já identificados durante a auditoria de publicação da branch `public-candidate`, sem declarar como resolvido aquilo que não foi alterado e revalidado.
-
 ## Resultado
 
-A revisão foi **concluída com pendências explícitas**. A árvore permanece bloqueada para release pública final.
+A revisão de segurança foi aplicada na `public-candidate` e aguarda somente a validação real no runner `PC` antes de ser considerada encerrada.
 
-### 1. Diagnóstico de configuração
+### 1. Diagnóstico de configuração — HARDENED
 
-O endpoint `POST /api/setup/diagnostics` é usado durante a configuração inicial e, no estado atual, pode receber caminhos fornecidos pelo cliente e retornar existência, tipo e permissões, além de informações sobre diretório de dados e disponibilidade de `ffmpeg`/`ffprobe`.
+`POST /api/setup/diagnostics` continua disponível durante a configuração inicial, quando ainda não existe uma conta autenticada. Depois que `setup_completed=true`, o middleware de `increment24_hardening.py` exige administrador autenticado e retorna `401` para acesso não autenticado.
 
-Durante a configuração inicial, essa capacidade precisa permanecer utilizável antes da existência de uma conta autenticada. Depois que a configuração é concluída, entretanto, a mesma superfície não deve permanecer aberta para exposição LAN/pública sem uma barreira administrativa ou equivalente.
+A resposta do diagnóstico continua limitada ao propósito de setup: estado do banco, disponibilidade de FFmpeg/FFprobe, existência/tipo/permissões dos caminhos fornecidos e diretório de dados.
 
-**Decisão para release:** pendência obrigatória. Restringir o diagnóstico após a configuração inicial ao administrador autenticado, ou substituir o endpoint por uma interface autenticada equivalente, e então repetir smoke/E2E e varredura independente.
+### 2. Cookie de sessão — HARDENED
 
-### 2. Cookie de sessão
+O comportamento HTTP local continua compatível por padrão. Foi adicionado o controle `KRYPTONPLAY_SECURE_COOKIES`; quando definido como `true`, `1`, `yes` ou `on`, o middleware adiciona `Secure` aos cookies emitidos.
 
-O login cria uma sessão persistida no banco e emite o cookie `kryptonplay_session` com `HttpOnly` e `SameSite=Lax`, mas `secure=False`.
+Assim, o modo HTTP local não é quebrado por uma mudança cega para `Secure`, enquanto uma implantação HTTPS pode exigir explicitamente o atributo seguro. FastAPI/Starlette suporta `secure`, `httponly` e `samesite` no cookie de resposta. citeturn0search0
 
-Isso é coerente com o cenário HTTP local atualmente validado no runner `PC`. Não deve ser alterado cegamente para `Secure`, porque isso poderia impedir o funcionamento do modo HTTP local. Para qualquer exposição por HTTPS/LAN, a política de transporte precisa ser explícita e o cookie deve ser protegido de acordo com o transporte efetivamente usado.
+### 3. Reset administrativo de senha — HARDENED
 
-**Decisão para release:** pendência arquitetural. Documentar o modo de transporte suportado e, se houver suporte oficial a HTTPS, tornar a política de `Secure` dependente de uma configuração de transporte seguro ou equivalente. Revalidar login/logout após a decisão.
+O fluxo foi alterado no middleware para não devolver mais uma senha temporária gerada pelo servidor na resposta HTTP.
 
-### 3. Reset administrativo de senha
+O administrador autenticado deve enviar `new_password` com 8–200 caracteres. O servidor grava somente o hash, invalida as sessões anteriores e responde com estado e ID, sem incluir `temporary_password`.
 
-`POST /api/v1/admin/users/{user_id}/reset-password` exige administrador autenticado, gera senha aleatória, invalida as sessões do usuário e retorna a senha temporária na resposta.
+O workflow E2E foi ampliado para criar um usuário, executar o reset e confirmar login com a nova senha, além de verificar explicitamente que `temporary_password` não aparece na resposta.
 
-O mecanismo não contém uma credencial fixa e foi preservado como fluxo funcional. O risco está no canal de entrega: qualquer cliente capaz de observar a resposta do administrador poderia obter a senha temporária.
+### 4. Dependências — PINNED
 
-**Decisão para release:** pendência de modelo de segurança. Se o fluxo permanecer, documentar que a resposta só deve ser consumida por uma interface administrativa autenticada e entregue por transporte seguro; preferencialmente considerar um fluxo de redefinição que não revele uma senha reutilizável na resposta HTTP.
+O manifesto agora fixa:
 
-## O que já foi validado
+- `fastapi==0.141.1`;
+- `uvicorn[standard]==0.52.4`;
+- `zeroconf==0.151.3`.
 
-- Varredura independente da árvore pública: run `34261465639`, job `102180192398`, **SUCCESS**.
-- Validação funcional integrada diretamente sobre `public-candidate`: run `34261625243`, job `102180723505`, **SUCCESS**, 4 testes.
-- E2E real diretamente sobre `public-candidate`: run `34275672859`, job `102227956236`, **SUCCESS**.
-- Build/installer diretamente sobre `public-candidate`: run `34262011642`, job `102188593169`, **SUCCESS**.
-- Full integrado: run `34276601584`, job `102236534720`, **SUCCESS**, mas executado no repositório privado na branch temporária `tmp-final-full-validation-2026-09-08`; portanto não é prova de `full` diretamente sobre `public-candidate`.
+As versões foram escolhidas a partir das releases publicadas no PyPI em 2026 e serão validadas integralmente no runner antes da aprovação final. FastAPI 0.141.1 é a release mais recente indicada pelo PyPI consultado; Uvicorn 0.52.4 e zeroconf 0.151.3 também são releases atuais no período da auditoria. citeturn1search3turn1search1turn1search0
+
+## Validação disparada
+
+Após as alterações, a branch `public-candidate` recebeu o commit `fe068e4241658614bf884a0175daf38db45c07b7`, que disparou:
+
+- run `34284379831` — E2E público com regressões de segurança;
+- run `34284379902` — Full Validation diretamente sobre `public-candidate`.
+
+Ambos estão atualmente **QUEUED**, aguardando o runner self-hosted `PC` aceitar os jobs. Os jobs foram roteados com `[self-hosted, windows, x64]`.
+
+A validação não será considerada aprovada enquanto esses runs não concluírem com sucesso. O uso de runner self-hosted em repositório público permanece deliberadamente temporário e controlado; o GitHub recomenda self-hosted runners principalmente para repositórios privados devido ao risco de execução de código não confiável. citeturn0search1turn0search2
 
 ## Critério de encerramento
 
-A revisão de segurança somente será considerada encerrada quando os três pontos acima tiverem sido resolvidos ou formalmente aprovados para o modelo de implantação escolhido, e as alterações finais tiverem passado por nova varredura independente e validação funcional apropriada.
+Depois que os runs `34284379831` e `34284379902` concluírem, ainda será necessário repetir a varredura independente da árvore final e realizar a conferência final de histórico, branches, tags e conteúdo privado antes da liberação de `main`.
 
-Até lá, `public-candidate` permanece bloqueada para merge/release em `main`.
+Até essas etapas, `public-candidate` permanece bloqueada para release pública final.
