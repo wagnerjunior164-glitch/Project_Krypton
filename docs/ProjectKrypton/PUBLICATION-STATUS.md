@@ -54,7 +54,15 @@ A execução `34261625243`, job `102180723505`, clonou novamente `public-candida
 
 O smoke integrado iniciou `uvicorn app:app`, validou setup/diagnóstico, criação inicial de administrador, login, Bearer token, settings, libraries e logout, registrando `INTEGRATED_APP_SMOKE_OK` e `VALIDACAO_INTEGRADA_PUBLIC_CANDIDATE_OK`.
 
-O manifesto continua sem versões fixadas. A execução confirmou compatibilidade do estado atual com Python `3.12.10`; nenhuma versão foi alterada arbitrariamente. A revisão de reprodutibilidade continua pendente antes da release final.
+O manifesto continua sem versões fixadas. A execução confirmou compatibilidade do estado atual com Python `3.12.10`; nenhuma versão foi alterada arbitrariamente.
+
+## Dependências e workflows — REVISÃO CONCLUÍDA
+
+`requirements.txt` contém apenas `fastapi`, `uvicorn[standard]` e `zeroconf`. A instalação e execução foram confirmadas no runner. A ausência de versões fixadas permanece como pendência de reprodutibilidade para a decisão final antes da release.
+
+A árvore `public-candidate` não contém workflows GitHub Actions públicos. Portanto, no estado atual, nenhum PR público executa código não confiável no runner self-hosted privado `PC`. Os workflows temporários de auditoria ficaram exclusivamente no repositório privado.
+
+O relatório completo está em `docs/ProjectKrypton/PUBLICATION-BATCH-DEPENDENCIES-WORKFLOWS-2026-09-08.md`.
 
 ## Pontos de segurança ainda em revisão
 
@@ -62,7 +70,7 @@ A auditoria funcional anterior identificou pontos que continuam sujeitos à deci
 
 ## Próximas etapas obrigatórias
 
-1. revisar completamente dependências e workflows/permissões;
+1. decidir e documentar o conjunto final de versões das dependências;
 2. executar `build` no runner `PC`;
 3. executar `installer`, incluindo integração real do instalador/updater;
 4. executar `full`;
@@ -77,4 +85,4 @@ O procedimento operacional local documentado para iniciar o runner Windows `PC` 
 
 **Status da árvore:** BLOQUEADA PARA RELEASE PÚBLICA FINAL.
 
-**Última etapa concluída:** varredura independente aprovada e validação funcional integrada aprovada no runner `PC`.
+**Última etapa concluída:** varredura independente, validação funcional integrada e revisão de dependências/workflows aprovadas/concluídas; build/installer/full e auditoria final ainda pendentes.
