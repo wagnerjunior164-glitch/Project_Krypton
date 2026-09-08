@@ -46,6 +46,3 @@ def install(app_module):
                 html=html.replace('</body>',script+'</body>',1);headers=dict(response.headers);headers.pop('content-length',None);return HTMLResponse(html,status_code=response.status_code,headers=headers)
             except Exception:return response
         return response
-
-def install_ui_runtime(app):
-    install(app)
