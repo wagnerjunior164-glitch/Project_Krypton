@@ -35,7 +35,9 @@ A revisão do repositório privado confirmou que a importação integral ainda n
 
 A documentação privada de publicação permanece a fonte do checklist detalhado; esta árvore pública não deve transformar um item pendente em item aprovado apenas porque um arquivo foi copiado.
 
-## Primeiro lote importado após a verificação
+## Lotes importados
+
+### Primeiro lote — fundação e documentação pública
 
 Foi importado e sanitizado um primeiro lote de documentação pública básica:
 
@@ -47,7 +49,32 @@ Foi importado e sanitizado um primeiro lote de documentação pública básica:
 
 Durante a importação, foram removidos ou generalizados detalhes específicos do ambiente, como o caminho local da biblioteca de mídia e referências a equipamento de laboratório. O conteúdo não foi importado cegamente.
 
-O `KryptonOS/README.md` não foi importado neste lote porque a leitura disponível não permitiu verificar integralmente o documento; ele permanece para uma importação posterior com conteúdo completo.
+### Segundo lote — componentes KryptonPlay de baixo risco
+
+Após nova inspeção individual, foi importado um segundo lote pequeno e controlado:
+
+- `KryptonPlay/diagnostics.py`;
+- `KryptonPlay/scanner.py`;
+- `KryptonPlay/tests/test_diagnostics.py`;
+- `KryptonPlay/tests/test_scanner_library.py`;
+- `KryptonPlay/config/README.md`;
+- `KryptonPlay/config/config.json`.
+
+O `config.json` foi **higienizado**, substituindo o caminho absoluto específico de ambiente por `media`. Nenhum segredo ou credencial foi incluído.
+
+Este lote não inclui ainda `app.py`, `launcher.py`, workflows, scripts operacionais, arquivos de staging ou demais componentes de alto acoplamento. Esses itens continuam sujeitos a inspeção individual.
+
+## Verificações após o segundo lote
+
+Foi realizada uma busca direcionada na árvore pública por indicadores que já haviam sido identificados na auditoria privada:
+
+- `D:\Midia` — não encontrado;
+- `TestPassword-123!` — não encontrado;
+- `Demo-KryptonPlay-2026` — não encontrado;
+- `self-hosted` — não encontrado;
+- `C:\Users\wagner` — não encontrado.
+
+Essas buscas são evidências de uma varredura direcionada, não substituem a varredura final completa.
 
 ## Critérios obrigatórios antes da release
 
@@ -73,4 +100,4 @@ Nenhum segredo deve ser considerado aceitável apenas por ser destinado a testes
 
 ## Próxima etapa
 
-Continuar a importação em lotes pequenos, começando pelos componentes de documentação e configuração que possam ser classificados como `PUBLICAR` ou `HIGIENIZAR`, e tratar workflows, scripts, testes e código somente após inspeção individual.
+Continuar a importação em lotes pequenos. O próximo grupo deve priorizar código necessário para formar uma unidade executável do KryptonPlay, mas somente depois da inspeção completa de suas dependências e da remoção de qualquer referência privada. Workflows e automações de CI continuam separados dessa etapa e não serão copiados até que tenham sido reescritos para o ambiente público.
