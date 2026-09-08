@@ -44,25 +44,30 @@ SHAs confirmados relevantes:
 
 ## Varredura independente de publicação — APROVADA
 
-Foi criado um workflow temporário no repositório privado para clonar a branch pública em ambiente limpo no runner `PC` e examinar todos os arquivos fora de `.git`.
-
-A primeira execução funcional, `34261206634`, encontrou somente referências ambientais desnecessárias em documentação histórica: um caminho de mídia específico e a identificação do repositório privado. Não foram encontrados tokens, chaves privadas, credenciais funcionais ou arquivos de segredo. Essas referências foram removidas da documentação pública.
-
-A execução final `34261465639`, job `102180192398`, examinou `39` arquivos e concluiu com **SUCCESS**, registrando `VALIDACAO_INDEPENDENTE_PUBLIC_CANDIDATE_OK`. Nenhum marcador proibido de segredo, credencial, caminho privado ou IPv4 LAN fixo foi encontrado.
+A execução final `34261465639`, job `102180192398`, examinou `39` arquivos em clone limpo da branch pública e concluiu com **SUCCESS**, registrando `VALIDACAO_INDEPENDENTE_PUBLIC_CANDIDATE_OK`. Nenhum marcador proibido de segredo, credencial, caminho privado ou IPv4 LAN fixo foi encontrado.
 
 O relatório completo está em `docs/ProjectKrypton/PUBLICATION-BATCH-INDEPENDENT-SCAN-2026-09-08.md`.
 
+## Validação funcional integrada — APROVADA
+
+A execução `34261625243`, job `102180723505`, clonou novamente `public-candidate` no runner `PC`, instalou o manifesto de dependências, compilou o código e executou os testes existentes: **4 passed**.
+
+O smoke integrado iniciou `uvicorn app:app`, validou setup/diagnóstico, criação inicial de administrador, login, Bearer token, settings, libraries e logout, registrando `INTEGRATED_APP_SMOKE_OK` e `VALIDACAO_INTEGRADA_PUBLIC_CANDIDATE_OK`.
+
+O manifesto continua sem versões fixadas. A execução confirmou compatibilidade do estado atual com Python `3.12.10`; nenhuma versão foi alterada arbitrariamente. A revisão de reprodutibilidade continua pendente antes da release final.
+
 ## Pontos de segurança ainda em revisão
 
-A auditoria funcional anterior identificou pontos que continuam sujeitos à decisão de arquitetura antes da release: proteção/sanitização de `/api/setup/diagnostics`, tratamento deliberado de cookie de sessão HTTP local e fluxo de senha temporária/reset administrativo. Esses pontos não foram mascarados como resolvidos pela varredura de publicação.
+A auditoria funcional anterior identificou pontos que continuam sujeitos à decisão de arquitetura antes da release: proteção/sanitização de `/api/setup/diagnostics`, tratamento deliberado de cookie de sessão HTTP local e fluxo de senha temporária/reset administrativo. Esses pontos não foram mascarados como resolvidos pela varredura de publicação ou pelo smoke integrado.
 
 ## Próximas etapas obrigatórias
 
-1. revisar completamente dependências e workflows/permissões, mantendo PRs não confiáveis fora de runners privados;
-2. executar validação funcional integrada;
-3. executar `build`, `installer` e `full`, incluindo integração real do instalador/updater;
-4. realizar conferência final da árvore, histórico, branches e tags públicos;
-5. somente então aprovar a release/merge para `main`.
+1. revisar completamente dependências e workflows/permissões;
+2. executar `build` no runner `PC`;
+3. executar `installer`, incluindo integração real do instalador/updater;
+4. executar `full`;
+5. realizar conferência final da árvore, histórico, branches e tags públicos;
+6. somente então aprovar a release/merge para `main`.
 
 Não remover testes, workflows ou branches temporários de auditoria agora. A limpeza será feita somente no encerramento da auditoria.
 
@@ -72,4 +77,4 @@ O procedimento operacional local documentado para iniciar o runner Windows `PC` 
 
 **Status da árvore:** BLOQUEADA PARA RELEASE PÚBLICA FINAL.
 
-**Última etapa concluída:** varredura independente de publicação aprovada no runner `PC`, após sanitização das referências ambientais da documentação pública.
+**Última etapa concluída:** varredura independente aprovada e validação funcional integrada aprovada no runner `PC`.
