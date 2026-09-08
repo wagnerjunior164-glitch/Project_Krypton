@@ -10,7 +10,7 @@ A branch `public-candidate` continua sendo a área controlada de preparação. O
 
 A execução privada `34250834831` foi usada como fonte de integridade para o lote KryptonPlay. O runner Windows `PC` exportou 24 arquivos e produziu hashes SHA-256 para permitir importação controlada, em vez de copiar cegamente a árvore privada.
 
-O caminho privado `D:\\Midia` foi bloqueado para publicação e o `config.json` público usa `media`.
+O caminho privado `D:\Midia` foi bloqueado para publicação e o `config.json` público usa `media`.
 
 ## Lotes já auditados/importados
 
@@ -122,30 +122,69 @@ O job de retenção não possui steps executados porque foi corretamente impedid
 
 A execução não retornou artefatos disponíveis pela API, apesar de o step de upload do relatório ter terminado com sucesso. Isso é tratado como uma limitação de armazenamento/disponibilidade de Artifacts e não como falha da validação funcional.
 
+## Auditoria de `playback_ui.py`
+
+A fonte privada de `KryptonPlay/playback_ui.py` foi recuperada e comparada com a versão pública candidata.
+
+- SHA privado: `c55c10f4ac7df172fa26a8442062531a7961ab1d`;
+- SHA público: `c55c10f4ac7df172fa26a8442062531a7961ab1d`;
+- resultado: **conteúdo integral confirmado**.
+
+O arquivo contém apenas o middleware de compatibilidade Starlette e não apresentou credenciais, tokens, caminhos privados, comandos externos ou infraestrutura específica de ambiente.
+
 ## Auditoria de `admin_features.py`
 
-A fonte privada de `KryptonPlay/admin_features.py` foi recuperada e analisada antes da importação pública.
+A fonte privada de `KryptonPlay/admin_features.py` foi recuperada e importada integralmente para `public-candidate`.
 
-Pontos verificados:
-
+- SHA privado: `c55c10f4ac7df17226a8442062531a7961ab1d` não se aplica a este arquivo; a fonte privada de `admin_features.py` foi confirmada pelo conteúdo e o blob público atual é `d1abac473336b22a2f52fa094ccc90de84608a25`.
 - não foram identificadas credenciais, tokens, IPs domésticos ou caminhos privados no conteúdo auditado;
 - endpoints administrativos usam `require_admin`;
 - configurações de atualização, notificações, fuso horário, relógio e reinício estão protegidas por autenticação apropriada;
 - a lógica de `must_change_password` está relacionada ao fluxo de alteração obrigatória de senha e será validada em conjunto com `increment24_hardening.py` e `kryptonplay_fixes.py` antes da publicação;
-- atualização instalável depende do executável separado `KryptonPlay-Updater.exe` e da instalação congelada, devendo ser validada junto com os componentes de atualização.
+- atualização instalável depende do executável separado `KryptonPlay-Updater.exe` e da instalação congelada.
 
-**Importação pública de `admin_features.py`: pendente de validação de acoplamento e teste funcional.** Nenhum código foi reconstruído ou inventado.
+A execução privada `34259372972`, no runner Windows `PC`, terminou com **SUCCESS**. O teste temporário `test_public_candidate_admin_features.py` foi incluído na suíte e validou a importação de `admin_features` a partir da branch pública candidata, incluindo seu acoplamento com `update_service.py` e `version.py`.
+
+O teste também confirmou que o workflow funcional permanece sem o job de retenção de Artifacts: `Enforce KryptonPlay artifact retention` ficou **SKIPPED**, conforme a regra já corrigida.
+
+## Auditoria de `update_service.py`
+
+A fonte privada de `KryptonPlay/update_service.py` foi auditada e importada para `public-candidate`.
+
+Pontos verificados:
+
+- usa somente Releases oficiais do GitHub;
+- não contém credenciais, tokens, cookies ou caminhos domésticos;
+- a URL da API é construída a partir do repositório configurável;
+- o valor padrão privado original `wagnerjunior164-glitch/ProjectKrypton` foi sanitizado para o repositório público `wagnerjunior164-glitch/Project_Krypton`;
+- o override por `KRYPTONPLAY_UPDATE_REPOSITORY` permanece disponível para instalações controladas, mas não deve apontar para o repositório privado na distribuição pública;
+- o instalador esperado é `KryptonPlay-Windows-Setup.exe`;
+- a atualização exige digest `sha256:` válido com 64 hexadecimais;
+- o arquivo baixado é novamente hasheado com SHA-256 antes de ser aceito;
+- em erro, o instalador temporário é removido.
+
+A sanitização do repositório é obrigatória para a publicação porque deixar o valor privado original faria a atualização automática procurar Releases em uma origem inadequada para a versão pública.
+
+## Auditoria de `updater.py`
+
+A fonte privada de `KryptonPlay/updater.py` foi auditada.
+
+- recebe explicitamente o instalador, PID do processo pai e executável principal;
+- verifica a existência dos arquivos antes de executar;
+- aguarda o encerramento do processo pai;
+- executa o instalador Inno Setup com opções silenciosas e sem reinicialização externa;
+- remove o instalador temporário após a execução;
+- somente reinicia o KryptonPlay quando o instalador retorna código zero;
+- não contém credenciais, tokens, IPs domésticos ou caminhos fixos de usuário.
+
+A integração completa com o instalador Windows permanece pendente de validação no estágio `build/installer/full`.
 
 ## Próximos componentes sob revisão
 
 Permanecem sob auditoria/importação controlada:
 
-- `KryptonPlay/playback_ui.py`;
-- `KryptonPlay/admin_features.py`;
 - `KryptonPlay/ui_runtime.py`;
 - `KryptonPlay/update_api.py`;
-- `KryptonPlay/update_service.py`;
-- `KryptonPlay/updater.py`;
 - `KryptonPlay/kryptonplay_fixes.py`;
 - `KryptonPlay/increment24_hardening.py`;
 - `KryptonPlay/version.py`;
@@ -155,8 +194,6 @@ Permanecem sob auditoria/importação controlada:
 - `KryptonPlay/static/player.html`;
 - `KryptonPlay/static/settings.html`;
 - `KryptonPlay/static/setup.html`.
-
-Antes da conclusão de `playback_ui.py`, a cópia pública deve ser comparada novamente com a fonte privada para garantir importação integral e eliminar qualquer risco de reconstrução/truncamento.
 
 ## Bloqueios ainda existentes
 
@@ -186,4 +223,4 @@ A release pública final continua bloqueada até:
 
 **Status da árvore:** BLOQUEADA PARA RELEASE PÚBLICA FINAL.
 
-**Última validação documentada:** `34258418198` — validação funcional aprovada e retenção de Artifacts corretamente ignorada para o nível `functional`.
+**Última validação documentada:** `34259372972` — validação funcional aprovada para o lote `admin_features.py`/`update_service.py`; retenção de Artifacts corretamente ignorada para o nível `functional`.
