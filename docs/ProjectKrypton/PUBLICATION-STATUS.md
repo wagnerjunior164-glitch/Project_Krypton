@@ -26,7 +26,7 @@ A validação `34255010907` executou `uvicorn app:app` e exercitou health, setup
 
 O job de retenção foi condicionado aos níveis `build`, `installer` e `full`. A execução funcional `34258418198` confirmou `Unified validation: SUCCESS` e `Enforce KryptonPlay artifact retention: SKIPPED`, eliminando o falso bloqueio de housekeeping em `functional`.
 
-## Lote atual — runtime, atualização e hardening
+## Lote runtime, atualização e hardening
 
 ### `playback_ui.py`
 
@@ -34,7 +34,7 @@ Fonte privada e versão pública têm SHA idêntico `c55c10f4ac7df172fa26a844206
 
 ### `admin_features.py`
 
-Importação integral confirmada, SHA público `d1abac473336b22a2f52fa094ccc90de84608a25`. Endpoints administrativos usam `require_admin`; configurações administrativas e atualização exigem autenticação apropriada. A integração foi exercitada na execução `34259372972` no runner `PC` e terminou com **SUCCESS**.
+Importação integral confirmada, SHA `d1abac473336b22a2f52fa094ccc90de84608a25`. Endpoints administrativos usam `require_admin`; configurações administrativas e atualização exigem autenticação apropriada. A integração foi exercitada na execução `34259372972` no runner `PC` e terminou com **SUCCESS**.
 
 ### `update_service.py`
 
@@ -46,41 +46,51 @@ Auditado e importado. Verifica instalador/aplicativo, aguarda o processo pai, ex
 
 ### `ui_runtime.py`
 
-Fonte privada auditada e importada integralmente para `public-candidate` no commit `47f03a9b27f46313e262b7d0539c36c55b880922`. Implementa status de segurança da conta, bloqueio de APIs para senha temporária, reinício administrativo apenas em instalação congelada e overlays de UI. Não foram identificadas credenciais ou caminhos domésticos fixos.
+A primeira cópia pública havia sido reconstruída manualmente e não correspondia ao blob privado. Isso foi corrigido nesta etapa: o arquivo público foi substituído pelo blob privado exato `7294415cb202c5b98759f6839ddb22375368ae6c` e o SHA público agora coincide exatamente.
 
 ### `update_api.py`
 
-Fonte privada auditada e importada integralmente no commit `ca59a1cdde33054a9f5a97bc3eb47d782967df12`. O endpoint de aplicação exige usuário autenticado, usa o serviço de atualização e inicia o `KryptonPlay-Updater.exe` somente quando os componentes instalados necessários existem.
+Verificação independente confirmou que o SHA público `1f9275148027823f29e54216132631f4d26c90be` já coincidia com o blob privado. Nenhuma alteração adicional foi necessária.
 
 ### `kryptonplay_fixes.py`
 
-Fonte privada auditada e importada integralmente no commit `b69f8431f4cea043d65ac441ee53c481f38b4d52`. O módulo cria/migra `must_change_password`, fornece hashing scrypt para novas senhas, mantém verificação de PBKDF2 legado, protege operações administrativas e implementa as extensões de perfil/status/UI.
+Verificação independente confirmou que o SHA público `ae9871530dad2ee8f4f464395335972fd59c99b0` já coincidia com o blob privado. Nenhuma alteração adicional foi necessária.
 
 ### `increment24_hardening.py`
 
-Fonte privada auditada e importada integralmente no commit `39c8af2fd276d7cc8fb4afbd89cd0ec02d1a2bb8`. Enforce a troca obrigatória de senha temporária na fronteira HTTP, preservando os endpoints necessários para concluir a troca e atualizando o estado após sucesso.
+O SHA público `38775df052be3f5cf9366a01a1526cbcb0e503b9` coincide com o blob privado. O componente permanece integral.
 
-## Resultado do lote
+## Lote de versão, dependências e interface estática
 
-Os quatro componentes foram auditados e colocados na árvore pública candidata sem publicar credenciais, tokens, cookies, IPs domésticos ou caminhos privados identificados. A integração é referenciada pelo `app.py`, que instala `update_api`, `kryptonplay_fixes`, `increment24_hardening`, `admin_features` e `ui_runtime`.
+### `version.py`
 
-A execução `34259372972` terminou com **SUCCESS** no runner Windows `PC`; o job de retenção permaneceu **SKIPPED** para `functional`. Isso valida o acoplamento básico do lote na suíte existente, mas não substitui a validação integrada final.
+SHA público e privado: `9c33b9e54509f3676c9c334dff1a07b0f5f8dc28`. Integridade confirmada; versão centralizada permanece `0.1.0`.
 
-## Próximos componentes sob revisão
+### `requirements.txt`
 
-- `KryptonPlay/version.py`;
-- `KryptonPlay/requirements.txt`;
-- `KryptonPlay/static/admin.html`;
-- `KryptonPlay/static/index.html`;
-- `KryptonPlay/static/player.html`;
-- `KryptonPlay/static/settings.html`;
-- `KryptonPlay/static/setup.html`.
+SHA público e privado: `f79def74856f0d5bfdb78a2a0c0bfb90a3851155`. Dependências declaradas: `fastapi`, `uvicorn[standard]` e `zeroconf`. Nenhum pacote adicional foi introduzido nesta transferência.
 
-Depois desses arquivos: varredura independente de segredos/ambiente, revisão de dependências e workflows, validação funcional integrada e, por último, `build/installer/full` e conferência final da árvore/histórico antes da primeira release.
+### Interfaces HTML
 
-## Bloqueios permanentes da release
+A conferência por árvore Git encontrou inicialmente três divergências de blob:
 
-A release pública final continua bloqueada até concluir toda a auditoria, resolver diferenças documentação/implementação, revisar autenticação/administração/atualização, dependências e workflows, executar varredura independente, concluir validação integrada, gerar build/installer final e conferir a árvore pública e o histórico Git.
+- `static/player.html`: público `94b9123194499fdd534267fb73de59eb7e76ffe5` → corrigido para o privado `27d96fa6d70d488729db78e9fa021df005646f08`;
+- `static/settings.html`: público `7237b30f5b798d1c5e4ea52f8e579879bbab722e` → corrigido para o privado `44a7cacf19c84d209eee666d2e50d9c9da829338`;
+- `static/setup.html`: público `60b4d612b53d257ec1e61e8e4174c4532af1f7e1` → corrigido para o privado `a022f052fddd752434d6de453e01d0be4d53f6f6`.
+
+`static/admin.html` e `static/index.html` já tinham os mesmos SHAs do privado: respectivamente `1c48ec87427b271c9b13439606b67d0e4e7d1818` e `ceb1c6c0851e1849c8fdc03d60844c756d3eb2d1`.
+
+Após as correções, a árvore pública confirma os sete componentes estáticos/versionamento/dependências com os SHAs privados correspondentes.
+
+## Correção de integridade — importante
+
+A revisão deste lote também corrigiu uma inconsistência da documentação anterior: não é suficiente afirmar que um arquivo foi “importado integralmente” quando a transferência foi feita por reconstrução manual. A partir desta etapa, a integridade dos componentes copiados do privado é considerada confirmada somente quando o blob SHA público coincide com o SHA privado, salvo casos explicitamente sanitizados como `update_service.py`.
+
+## Resultado atual
+
+A árvore `public-candidate` está novamente consistente nos arquivos que puderam ser comparados diretamente. O commit de correção mais recente é `70b1206c66c7d2e03a391175b537c44f94cedc23`; a árvore confirma `player.html`, `settings.html`, `setup.html` e `ui_runtime.py` com os SHAs privados esperados.
+
+A release pública final **continua bloqueada**. Ainda faltam a varredura independente de segredos/ambiente sobre a árvore candidata, revisão completa de dependências e workflows, validação funcional integrada e `build/installer/full`, seguida da conferência final de árvore e histórico.
 
 Não remover testes temporários ou resíduos de auditoria agora. A limpeza será feita somente no encerramento da auditoria.
 
@@ -90,4 +100,4 @@ O runner Windows `PC` continua disponível para validações reais controladas. 
 
 **Status da árvore:** BLOQUEADA PARA RELEASE PÚBLICA FINAL.
 
-**Última validação documentada:** `34259372972` — lote runtime/atualização/hardening integrado com sucesso no runner `PC`.
+**Última etapa concluída:** correção e confirmação de integridade dos arquivos de versão, dependências e interface estática, além da confirmação independente dos blobs de runtime/update/hardening.
