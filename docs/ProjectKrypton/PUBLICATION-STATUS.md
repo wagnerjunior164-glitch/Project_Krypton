@@ -66,7 +66,7 @@ O manifesto continua sem versões fixadas. A execução confirmou compatibilidad
 
 `requirements.txt` contém apenas `fastapi`, `uvicorn[standard]` e `zeroconf`. A instalação e execução foram confirmadas no runner. A ausência de versões fixadas permanece como pendência de reprodutibilidade para a decisão final antes da release.
 
-A árvore `public-candidate` recebeu temporariamente `.github/workflows/tmp-public-candidate-e2e.yml` exclusivamente para executar o E2E real diretamente contra a árvore pública no runner `PC`. O workflow não contém credenciais fixas: a senha de E2E é gerada em runtime. Esse workflow é temporário e será removido no encerramento da auditoria.
+A árvore `public-candidate` recebeu temporariamente `.github/workflows/tmp-public-candidate-e2e-2026-09-08.yml` exclusivamente para executar o E2E real diretamente contra a árvore pública no runner `PC`. O workflow não contém credenciais fixas: a senha de E2E é gerada em runtime. Esse workflow é temporário e será removido no encerramento da auditoria.
 
 O relatório completo de dependências/workflows permanece em `docs/ProjectKrypton/PUBLICATION-BATCH-DEPENDENCIES-WORKFLOWS-2026-09-08.md`.
 
@@ -82,33 +82,46 @@ O PyInstaller registrou aviso operacional de execução como administrador. O av
 
 O relatório detalhado está em `docs/ProjectKrypton/PUBLICATION-BATCH-BUILD-INSTALLER-2026-09-08.md`.
 
-## E2E real — AGUARDANDO RUNNER
+## E2E real — APROVADO
 
-Foi criado o workflow temporário `tmp-public-candidate-e2e.yml`, diretamente em `public-candidate`, para executar no `PC`:
+Foi criado o workflow temporário `.github/workflows/tmp-public-candidate-e2e-2026-09-08.yml`, diretamente em `public-candidate`, para executar no `PC` contra um clone limpo da árvore pública.
 
-- FFmpeg/FFprobe reais;
-- geração de mídia de teste;
-- instalação de Playwright/Chromium;
-- inicialização real de `run_e2e_server.py`;
-- setup inicial e criação de administrador em runtime;
-- login/token;
-- scan da biblioteca;
-- execução de `tests/e2e_web_test.py` sobre a UI real, incluindo reprodução, progresso/resume e persistência de preferências.
+O primeiro run `34268012381` ficou inicialmente bloqueado por seleção excessivamente específica de labels e foi posteriormente cancelado sem executar etapas. O workflow foi corrigido para usar os labels padrão `[self-hosted, windows, x64]`. Essa configuração é compatível com o modelo de roteamento documentado pelo GitHub, no qual o runner precisa possuir todos os labels especificados. citeturn0search4turn0search5
 
-Run `34265636391`, job `102194170188`: **QUEUED** no momento deste registro. Portanto, **E2E ainda não está aprovado**.
+A execução seguinte `34275017141` alcançou corretamente o runner `PC`, mas falhou na primeira etapa por causa da Execution Policy do Windows PowerShell. O workflow foi endurecido para executar cada script com `-NoProfile -ExecutionPolicy Bypass`, sem alterar a política global da máquina.
+
+A execução final `34275672859`, job `102227956236`, concluiu com **SUCCESS** no runner `PC` e confirmou:
+
+- clone limpo de `public-candidate`;
+- FFmpeg e FFprobe reais disponíveis;
+- geração de mídia H.264 de teste `320x240`, 30 segundos;
+- instalação das dependências;
+- inicialização real de `tests/run_e2e_server.py`;
+- health do servidor;
+- login administrativo e obtenção de token;
+- criação da biblioteca `CI E2E Library`;
+- scan da biblioteca com **1 item encontrado**;
+- status global `ok`;
+- componentes `server`, `database`, `library`, `storage`, `api` e `ffmpeg` em `ok`;
+- execução de `tests/e2e_web_test.py`;
+- marcador `PUBLIC_CANDIDATE_E2E_OK`;
+- marcador final `VALIDACAO_E2E_PUBLIC_CANDIDATE_OK`.
+
+A senha administrativa usada nessa execução foi gerada em runtime a partir do `github.run_id`, sem credencial fixa no workflow. O workflow continua temporário e será removido somente no encerramento da auditoria.
 
 ## Pontos de segurança ainda em revisão
 
-A auditoria funcional anterior identificou pontos que continuam sujeitos à decisão de arquitetura antes da release: proteção/sanitização de `/api/setup/diagnostics`, tratamento deliberado de cookie de sessão HTTP local e fluxo de senha temporária/reset administrativo. Esses pontos não foram mascarados como resolvidos pela varredura de publicação ou pelo smoke integrado.
+A auditoria funcional anterior identificou pontos que continuam sujeitos à decisão de arquitetura antes da release: proteção/sanitização de `/api/setup/diagnostics`, tratamento deliberado de cookie de sessão HTTP local e fluxo de senha temporária/reset administrativo. Esses pontos não foram mascarados como resolvidos pela varredura de publicação ou pelos testes E2E.
 
-## Próximas etapas obrigatórias
+## Pendências obrigatórias para a liberação final
 
-1. concluir o E2E real no runner `PC`;
-2. executar o nível `full`, incluindo integração final do updater;
-3. repetir a varredura independente após as alterações finais;
-4. decidir e documentar o conjunto final de versões das dependências;
-5. realizar conferência final da árvore, histórico, branches e tags públicos;
-6. somente então aprovar a release/merge para `main`.
+1. executar o nível `full`, incluindo a integração final do updater;
+2. repetir a varredura independente após todas as alterações finais;
+3. decidir e documentar o conjunto final de versões das dependências;
+4. resolver ou aprovar formalmente os três pontos de segurança/arquitetura ainda em revisão;
+5. realizar conferência final da árvore pública, histórico, branches e tags;
+6. confirmar novamente que nenhum dado específico do ambiente privado foi publicado;
+7. somente então aprovar a release/merge para `main`.
 
 Não remover testes, workflows ou branches temporários de auditoria agora. A limpeza será feita somente no encerramento da auditoria.
 
@@ -118,4 +131,4 @@ O procedimento operacional local documentado para iniciar o runner Windows `PC` 
 
 **Status da árvore:** BLOQUEADA PARA RELEASE PÚBLICA FINAL.
 
-**Última etapa concluída:** build/installer aprovado após correção de `updater.py` e endurecimento do `.iss`; E2E real iniciado e aguardando o runner `PC`; `full`, auditoria final e limpeza ainda pendentes.
+**Última etapa concluída:** E2E real aprovado no runner `PC` após correção de roteamento e Execution Policy; build/installer e varredura independente também aprovados. Permanecem pendentes `full`, decisão das dependências, resolução/aprovação dos pontos de segurança, conferência final da árvore pública e limpeza controlada da auditoria.
