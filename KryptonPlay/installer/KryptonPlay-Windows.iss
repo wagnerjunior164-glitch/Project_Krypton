@@ -48,4 +48,4 @@ Name: "desktopicon"; Description: "Criar atalho na área de trabalho"; GroupDesc
 Filename: "{app}\{#AppExeName}"; Description: "Iniciar KryptonPlay"; Flags: nowait postinstall skipifsilent runascurrentuser
 
 [UninstallRun]
-Filename: "{sys}\taskkill.exe"; Parameters: "/IM KryptonPlay.exe /T /F"; Flags: runhidden waituntilterminated
+Filename: "{sys}\taskkill.exe"; Parameters: "/IM KryptonPlay.exe /T /F"; Flags: runhidden waituntilterminated; RunOnceId: "KryptonPlayTaskKill"
