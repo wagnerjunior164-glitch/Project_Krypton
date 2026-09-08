@@ -14,27 +14,30 @@ O gate procurou, entre outros indicadores, chaves privadas, tokens GitHub/AWS, c
 
 ## Primeira execução
 
-A primeira execução funcional chegou ao clone da árvore pública e encontrou apenas duas classes de informação ambiental em documentação histórica:
+A primeira execução funcional encontrou apenas referências ambientais desnecessárias em documentação histórica: um caminho de mídia específico do ambiente privado e a identificação do repositório privado. Não foram encontrados tokens, chaves privadas, credenciais funcionais ou arquivos de segredo.
 
-- referência a um caminho de mídia específico do ambiente privado;
-- referência explícita ao repositório privado.
-
-Não foram encontrados tokens, chaves privadas, credenciais funcionais ou arquivos de segredo.
-
-As referências ambientais desnecessárias foram removidas da documentação pública. A identificação do repositório privado também foi retirada das passagens que não precisam dela para explicar o processo de auditoria.
+As referências ambientais desnecessárias foram removidas da documentação pública.
 
 ## Correção
 
-A documentação `PUBLICATION-BATCH-STATIC-2026-09-08.md` foi atualizada para descrever o ambiente privado de forma genérica, sem reproduzir caminhos locais ou identificadores de infraestrutura privada.
+A documentação pública foi atualizada para descrever o ambiente privado de forma genérica, sem reproduzir caminhos locais ou identificadores de infraestrutura privada.
 
-O `update_service.py` já utiliza como padrão o repositório público `wagnerjunior164-glitch/Project_Krypton`, mantendo `KRYPTONPLAY_UPDATE_REPOSITORY` apenas como override configurável.
+O `update_service.py` utiliza como padrão o repositório público `wagnerjunior164-glitch/Project_Krypton`, mantendo `KRYPTONPLAY_UPDATE_REPOSITORY` apenas como override configurável.
 
-## Resultado
+## Resultado final
 
-A primeira execução não representa uma falha de segurança do código: foi um achado de higiene de publicação na documentação. A etapa final deve ser repetida sobre a árvore pública após a sanitização e somente será considerada aprovada quando o runner registrar `VALIDACAO_INDEPENDENTE_PUBLIC_CANDIDATE_OK`.
+A execução final no runner `PC` foi concluída com **SUCCESS**:
+
+- run: `34261465639`;
+- job: `102180192398`;
+- arquivos examinados: `39`;
+- resultado: `VALIDACAO_INDEPENDENTE_PUBLIC_CANDIDATE_OK`;
+- nenhum marcador proibido de segredo, credencial, caminho privado ou IPv4 LAN fixo encontrado.
+
+A execução utilizou um clone limpo da branch pública e ocorreu fora do contexto de checkout do código candidato, reduzindo o risco de um falso positivo causado por arquivos locais do ambiente de auditoria.
 
 ## Gate de release
 
-A release pública continua bloqueada até a confirmação desse gate, seguida da revisão de dependências/workflows, validação funcional integrada e `build/installer/full` no runner `PC`, e conferência final de árvore e histórico.
+A varredura independente de publicação está **APROVADA**. Isso não libera a release final por si só: permanecem obrigatórias a revisão de dependências/workflows, validação funcional integrada, `build/installer/full` no runner `PC` e conferência final de árvore e histórico.
 
 Os artefatos e testes temporários da auditoria não serão removidos nesta etapa.
