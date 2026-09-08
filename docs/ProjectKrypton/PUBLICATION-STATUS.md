@@ -72,28 +72,45 @@ Os SHA-256 observados no exportador para este lote foram registrados antes da im
 - `playback_info.py`: `0f6c138d14e34adfe3716c53f4b6c1863cdb81a9`;
 - `mdns_service.py`: `f68498bd99b9b17111e119a6323fea6798401939`.
 
+### Quarto lote — reprodução/FFmpeg: auditoria aprofundada, sem importação
+
+Foi feita a inspeção do código privado de:
+
+- `KryptonPlay/audio_fallback.py`;
+- `KryptonPlay/playback_pipeline.py`.
+
+A análise confirmou que ambos têm acoplamento direto com FFmpeg/FFprobe, subprocessos, cache de áudio e o endpoint de streaming. `audio_fallback.py` aceita ferramentas por variáveis de ambiente (`KRYPTONPLAY_FFMPEG`/`KRYPTONPLAY_FFPROBE`) ou por descoberta no PATH/empacotamento; os comandos são montados como listas de argumentos, sem interpolação em shell. `playback_pipeline.py` também usa subprocessos controlados e valores de preset/CRF vindos do ambiente.
+
+Apesar de não haver, na porção auditada, credenciais ou caminhos domésticos explícitos equivalentes a `D:\\Midia`, este lote não foi aprovado automaticamente: é um componente de maior risco operacional e precisa de validação funcional real com FFmpeg no Windows e de verificação do acoplamento com `app.py` antes de entrar na árvore pública.
+
+A validação por runner foi considerada necessária para esta etapa, mas não foi usada para declarar o lote aprovado. O objetivo é testar a integração real no Windows sem transformar o runner privado em mecanismo de execução de código público não confiável.
+
+Durante a tentativa de preparar a cópia pública, uma versão truncada de `audio_fallback.py` chegou a ser criada acidentalmente na `public-candidate`; ela foi imediatamente removida no commit `985b7291ce5b322ffc5f9015ca771f62fdcbcb2f`. **Não considerar aquela cópia como fonte pública válida.** A importação integral e exata do arquivo permanece bloqueada até ser obtida diretamente da fonte de auditoria e validada.
+
+Consequentemente, **`audio_fallback.py` e `playback_pipeline.py` continuam oficialmente não importados/aprovados** nesta etapa.
+
 ## Arquivos deliberadamente não importados nesta etapa
 
 Os seguintes componentes do lote de 24 arquivos permanecem sob revisão e **não devem ser considerados aprovados** apenas por terem sido recuperados pelo runner:
 
-- `app.py`;
-- `audio_fallback.py`;
-- `playback_pipeline.py`;
-- `playback_ui.py`;
-- `admin_features.py`;
-- `ui_runtime.py`;
-- `update_api.py`;
-- `update_service.py`;
-- `updater.py`;
-- `kryptonplay_fixes.py`;
-- `increment24_hardening.py`;
-- `version.py`;
-- `requirements.txt`;
-- `static/admin.html`;
-- `static/index.html`;
-- `static/player.html`;
-- `static/settings.html`;
-- `static/setup.html`.
+- `KryptonPlay/app.py`;
+- `KryptonPlay/audio_fallback.py`;
+- `KryptonPlay/playback_pipeline.py`;
+- `KryptonPlay/playback_ui.py`;
+- `KryptonPlay/admin_features.py`;
+- `KryptonPlay/ui_runtime.py`;
+- `KryptonPlay/update_api.py`;
+- `KryptonPlay/update_service.py`;
+- `KryptonPlay/updater.py`;
+- `KryptonPlay/kryptonplay_fixes.py`;
+- `KryptonPlay/increment24_hardening.py`;
+- `KryptonPlay/version.py`;
+- `KryptonPlay/requirements.txt`;
+- `KryptonPlay/static/admin.html`;
+- `KryptonPlay/static/index.html`;
+- `KryptonPlay/static/player.html`;
+- `KryptonPlay/static/settings.html`;
+- `KryptonPlay/static/setup.html`.
 
 A razão é controle de acoplamento e segurança: vários desses arquivos participam de autenticação, administração, atualização automática, execução de subprocessos, UI dinâmica ou distribuição. Eles serão importados somente depois da análise de suas dependências e de sua compatibilidade com a árvore pública.
 
@@ -114,7 +131,8 @@ Foram conferidos, entre outros pontos:
 - ausência de IP doméstico fixo no `mdns_service.py`;
 - uso de `kryptonplay.local` como hostname neutro;
 - manutenção da branch `public-candidate` como área de preparação;
-- preservação do bloqueio de release até a conclusão da auditoria integral.
+- preservação do bloqueio de release até a conclusão da auditoria integral;
+- remoção imediata da cópia truncada de `audio_fallback.py`, sem tratá-la como código público válido.
 
 Essas verificações são direcionadas e não substituem a varredura final completa.
 
@@ -142,10 +160,10 @@ Nenhum segredo deve ser considerado aceitável apenas por ser destinado a testes
 
 ## Próxima etapa
 
-Continuar a importação em lotes pequenos, priorizando a unidade executável do KryptonPlay. Antes de importar o restante, devem ser resolvidas as dependências de `app.py`, reprodução/FFmpeg, administração, atualização automática e arquivos estáticos. Workflows e automações de CI continuam separados desta etapa e não serão copiados até que sejam reescritos para o ambiente público.
+Continuar a importação em lotes pequenos, priorizando a unidade executável do KryptonPlay. O próximo avanço deve resolver o caminho de importação exata de `audio_fallback.py`/`playback_pipeline.py` e sua validação Windows/FFmpeg antes de qualquer aprovação. Em seguida, devem ser resolvidas as dependências de `app.py`, administração, atualização automática e arquivos estáticos. Workflows e automações de CI continuam separados desta etapa e não serão copiados até que sejam reescritos para o ambiente público.
 
 ## Aprovação
 
 **Status da árvore:** BLOQUEADA PARA RELEASE PÚBLICA FINAL.
 
-A documentação foi atualizada após o terceiro lote para registrar exatamente o que foi importado, o que foi sanitizado, o que permanece bloqueado e os critérios que ainda impedem a publicação.
+A documentação foi atualizada após a auditoria do quarto lote para registrar o que foi importado, o que foi sanitizado, o que foi deliberadamente bloqueado e o incidente de cópia truncada que foi removido imediatamente.
