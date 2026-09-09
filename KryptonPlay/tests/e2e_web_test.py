@@ -62,20 +62,21 @@ def login(page):
 
 
 def reload_and_wait_for_preferences(page, expected, timeout_ms=15000):
+    settings_url = f"{BASE_URL}/static/settings.html"
     try:
         with page.expect_response(
             lambda response: response.url.endswith("/api/v1/profile/preferences")
             and response.request.method == "GET",
             timeout=timeout_ms,
         ) as response_info:
-            page.reload(wait_until="domcontentloaded", timeout=timeout_ms)
+            page.goto(settings_url, wait_until="commit", timeout=timeout_ms)
         response = response_info.value
     except PlaywrightTimeoutError as exc:
-        raise AssertionError("O reload não concluiu a leitura GET de /api/v1/profile/preferences em 15 s.") from exc
+        raise AssertionError("A navegação para settings não concluiu GET de /api/v1/profile/preferences em 15 s.") from exc
 
     if not response.ok:
         body = response.text()
-        raise AssertionError(f"GET de preferências falhou após reload: HTTP {response.status}: {body}")
+        raise AssertionError(f"GET de preferências falhou após navegação para settings: HTTP {response.status}: {body}")
 
     page.wait_for_function(
         """
