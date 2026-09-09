@@ -52,13 +52,13 @@ def login(page):
     use_local = page.locator("#use-local")
     use_local.wait_for(state="visible", timeout=15000)
     page.get_by_role("button", name="Usar este servidor", exact=True).click()
-    page.goto(f"{BASE_URL}/static/player.html", wait_until="networkidle", timeout=15000)
+    page.goto(f"{BASE_URL}/static/player.html", wait_until="domcontentloaded", timeout=15000)
     user_card = page.locator(".user-card").filter(has_text="admin").first
     user_card.wait_for(state="visible", timeout=15000)
     user_card.click()
     page.locator("#password").fill(PASSWORD)
     page.get_by_role("button", name="Entrar", exact=True).click()
-    page.wait_for_load_state("networkidle", timeout=15000)
+    page.get_by_text("Filme Teste", exact=True).wait_for(state="visible", timeout=15000)
 
 
 def reload_and_wait_for_preferences(page, expected, timeout_ms=15000):
@@ -128,7 +128,7 @@ def save_preferences_and_wait(page, button, expected):
 
 
 def verify_saved_preferences(page):
-    page.goto(f"{BASE_URL}/static/settings.html", wait_until="networkidle", timeout=15000)
+    page.goto(f"{BASE_URL}/static/settings.html", wait_until="domcontentloaded", timeout=15000)
     page.get_by_role("button", name="Aparência", exact=True).click()
     page.locator("#theme").select_option("light")
     page.locator("#language").select_option("pt-BR")
@@ -153,7 +153,7 @@ def verify_saved_preferences(page):
 
 
 def verify_saved_playback_behavior(page):
-    page.goto(f"{BASE_URL}/static/player.html", wait_until="networkidle", timeout=15000)
+    page.goto(f"{BASE_URL}/static/player.html", wait_until="domcontentloaded", timeout=15000)
     page.get_by_text("Filme Teste", exact=True).wait_for(state="visible", timeout=15000)
     open_test_movie(page)
     video = page.locator("#player")
