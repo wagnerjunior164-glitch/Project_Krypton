@@ -41,54 +41,22 @@ def login(page):
     page.wait_for_load_state("networkidle", timeout=15000)
 
 
-def fetch_saved_preferences(page, token):
-    try:
-        response = page.request.get(
-            f"{BASE_URL}/api/v1/profile/preferences",
-            headers={"Authorization": f"Bearer {token}"},
-            timeout=5000,
-        )
-        if not response.ok:
-            return {"status": response.status, "body": None}
-        return {"status": response.status, "body": response.json()}
-    except Exception as exc:
-        return {"error": str(exc)}
-
-
-def wait_for_saved_preferences(page, expected, timeout_ms=15000):
-    token = page.evaluate("sessionStorage.getItem('kryptonplay_token')")
-    if not token:
-        raise AssertionError("Sessão autenticada não está disponível ao validar preferências.")
-
-    deadline = time.time() + timeout_ms / 1000
-    last_api = None
-    while time.time() < deadline:
-        last_api = fetch_saved_preferences(page, token)
-        preferences = (last_api.get("body") or {}).get("preferences", {}) if isinstance(last_api, dict) else {}
-        if all(str(preferences.get(key)) == str(value) for key, value in expected.items()):
-            return
-        time.sleep(0.25)
-
-    controls = page.evaluate(
-        """
-        () => ({
-            theme: document.querySelector('#theme')?.value,
-            language: document.querySelector('#language')?.value,
-            resume: document.querySelector('#resume')?.checked,
-            autoplay: document.querySelector('#autoplay')?.checked,
-            speed: document.querySelector('#speed')?.value
-        })
-        """
-    )
-    raise AssertionError(
-        f"Preferências não persistiram dentro de {timeout_ms} ms. "
-        f"Esperado={expected!r}; API={last_api!r}; controles={controls!r}"
-    )
-
-
 def reload_and_wait_for_preferences(page, expected, timeout_ms=15000):
-    page.reload(wait_until="domcontentloaded", timeout=timeout_ms)
-    wait_for_saved_preferences(page, expected, timeout_ms=timeout_ms)
+    try:
+        with page.expect_response(
+            lambda response: response.url.endswith("/api/v1/profile/preferences")
+            and response.request.method == "GET",
+            timeout=timeout_ms,
+        ) as response_info:
+            page.reload(wait_until="domcontentloaded", timeout=timeout_ms)
+        response = response_info.value
+    except PlaywrightTimeoutError as exc:
+        raise AssertionError("O reload não concluiu a leitura GET de /api/v1/profile/preferences em 15 s.") from exc
+
+    if not response.ok:
+        body = response.text()
+        raise AssertionError(f"GET de preferências falhou após reload: HTTP {response.status}: {body}")
+
     page.wait_for_function(
         """
         expected => {
@@ -126,7 +94,16 @@ def save_preferences_and_wait(page, button, expected):
         body = response.text()
         raise AssertionError(f"PUT de preferências falhou: HTTP {response.status}: {body}")
 
-    wait_for_saved_preferences(page, expected)
+    page.wait_for_function(
+        """
+        expected => {
+            const message = document.querySelector(expected.messageId);
+            return message && message.textContent.includes('Preferências salvas.');
+        }
+        """,
+        arg={"messageId": "#appearance-message" if expected["resume"] == "true" else "#playback-message"},
+        timeout=5000,
+    )
 
 
 def verify_saved_preferences(page):
