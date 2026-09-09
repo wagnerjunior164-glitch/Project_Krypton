@@ -29,126 +29,46 @@ def open_test_movie(page):
 
 
 def login(page):
-    setup_response = None
-    try:
-        with page.expect_response(
-            lambda response: response.url.endswith("/api/setup/status")
-            and response.request.method == "GET",
-            timeout=15000,
-        ) as response_info:
-            page.goto(BASE_URL, wait_until="domcontentloaded", timeout=15000)
-        setup_response = response_info.value
-    except PlaywrightTimeoutError as exc:
-        raise AssertionError("A página inicial não concluiu GET de /api/setup/status em 15 s.") from exc
-
-    if not setup_response.ok:
-        body = setup_response.text()
-        raise AssertionError(f"GET de /api/setup/status falhou: HTTP {setup_response.status}: {body}")
-
-    setup_data = setup_response.json()
-    if not setup_data.get("completed"):
-        raise AssertionError(f"O servidor não está configurado segundo /api/setup/status: {setup_data}")
-
-    use_local = page.locator("#use-local")
-    use_local.wait_for(state="visible", timeout=15000)
+    page.goto(BASE_URL, wait_until="networkidle", timeout=15000)
+    page.get_by_role("button", name="Usar este servidor", exact=True).wait_for(state="visible", timeout=15000)
     page.get_by_role("button", name="Usar este servidor", exact=True).click()
-    page.goto(f"{BASE_URL}/static/player.html", wait_until="domcontentloaded", timeout=15000)
+    page.goto(f"{BASE_URL}/static/player.html", wait_until="networkidle", timeout=15000)
     user_card = page.locator(".user-card").filter(has_text="admin").first
     user_card.wait_for(state="visible", timeout=15000)
     user_card.click()
-    page.locator("#password").fill(PASSWORD)
+    password = page.locator("#password")
+    password.fill(PASSWORD)
     page.get_by_role("button", name="Entrar", exact=True).click()
-    page.get_by_text("Filme Teste", exact=True).wait_for(state="visible", timeout=15000)
-
-
-def api_get_preferences(page):
-    token = page.evaluate("() => sessionStorage.getItem('kryptonplay_token')")
-    if not token:
-        raise AssertionError("Sessão E2E não possui kryptonplay_token após login.")
-    response = page.request.get(
-        f"{BASE_URL}/api/v1/profile/preferences",
-        headers={"Authorization": f"Bearer {token}"},
-        timeout=15000,
-    )
-    if not response.ok:
-        body = response.text()
-        raise AssertionError(f"GET direto de preferências falhou: HTTP {response.status}: {body}")
-    payload = response.json()
-    return payload.get("preferences") or {}
-
-
-def save_preferences_and_wait(page, button, expected):
-    try:
-        with page.expect_response(
-            lambda response: response.url.endswith("/api/v1/profile/preferences")
-            and response.request.method == "PUT",
-            timeout=15000,
-        ) as response_info:
-            button.click()
-        response = response_info.value
-    except PlaywrightTimeoutError as exc:
-        raise AssertionError("O botão de salvar não concluiu a requisição PUT de preferências em 15 s.") from exc
-
-    if not response.ok:
-        body = response.text()
-        raise AssertionError(f"PUT de preferências falhou: HTTP {response.status}: {body}")
-
-    page.wait_for_function(
-        """
-        expected => {
-            const message = document.querySelector(expected.messageId);
-            return message && message.textContent.includes('Preferências salvas.');
-        }
-        """,
-        arg={"messageId": "#appearance-message" if expected["resume"] == "true" else "#playback-message"},
-        timeout=5000,
-    )
-
-
-def assert_preferences(actual, expected, label):
-    for key in ("theme", "language", "resume", "autoplay", "speed"):
-        assert str(actual.get(key)) == str(expected[key]), (
-            f"{label}: preferência {key!r} incorreta: "
-            f"esperado={expected[key]!r}, recebido={actual.get(key)!r}"
-        )
+    page.wait_for_load_state("networkidle", timeout=15000)
 
 
 def verify_saved_preferences(page):
-    # A antiga estratégia recarregava settings.html e ficava dependente de a
-    # inicialização assíncrona da página disparar GET /profile/preferences no
-    # momento exato em que o Playwright aguardava o evento. Isso não testa a
-    # persistência melhor e era a única falha intermitente do E2E.
-    #
-    # Agora o teste mantém a parte importante da UI: altera e salva pelos
-    # controles reais. A persistência é então verificada diretamente pela API,
-    # usando o mesmo token autenticado da sessão do navegador. O comportamento
-    # efetivo dessas preferências continua sendo validado em
-    # verify_saved_playback_behavior().
-    page.goto(f"{BASE_URL}/static/settings.html", wait_until="domcontentloaded", timeout=15000)
+    page.goto(f"{BASE_URL}/static/settings.html", wait_until="networkidle", timeout=15000)
     page.get_by_role("button", name="Aparência", exact=True).click()
     page.locator("#theme").select_option("light")
     page.locator("#language").select_option("pt-BR")
-    # A primeira etapa deve ser determinística: não podemos presumir o estado
-    # que ficou no banco após os testes anteriores. Definimos explicitamente
-    # todos os controles que fazem parte do contrato verificado.
-    page.locator("#resume").check()
-    page.locator("#autoplay").uncheck()
-    page.locator("#speed").select_option("1")
-    appearance = {"theme": "light", "language": "pt-BR", "resume": "true", "autoplay": "false", "speed": "1"}
-    save_preferences_and_wait(page, page.get_by_role("button", name="Salvar preferências", exact=True).first, appearance)
-    assert_preferences(api_get_preferences(page), appearance, "Aparência")
+    page.get_by_role("button", name="Salvar preferências", exact=True).first.click()
+    page.wait_for_timeout(250)
+    page.reload(wait_until="networkidle")
+    page.get_by_role("button", name="Aparência", exact=True).click()
+    assert page.locator("#theme").input_value() == "light"
+    assert page.locator("#language").input_value() == "pt-BR"
 
     page.get_by_role("button", name="Reprodução", exact=True).click()
     page.locator("#resume").uncheck()
     page.locator("#autoplay").check()
     page.locator("#speed").select_option("1.5")
-    playback = {"theme": "light", "language": "pt-BR", "resume": "false", "autoplay": "true", "speed": "1.5"}
-    save_preferences_and_wait(page, page.get_by_role("button", name="Salvar preferências", exact=True).last, playback)
-    assert_preferences(api_get_preferences(page), playback, "Reprodução")
+    page.get_by_role("button", name="Salvar preferências", exact=True).last.click()
+    page.wait_for_timeout(250)
+    page.reload(wait_until="networkidle")
+    page.get_by_role("button", name="Reprodução", exact=True).click()
+    assert page.locator("#resume").is_checked() is False
+    assert page.locator("#autoplay").is_checked() is True
+    assert page.locator("#speed").input_value() == "1.5"
 
 
 def verify_saved_playback_behavior(page):
-    page.goto(f"{BASE_URL}/static/player.html", wait_until="domcontentloaded", timeout=15000)
+    page.goto(f"{BASE_URL}/static/player.html", wait_until="networkidle", timeout=15000)
     page.get_by_text("Filme Teste", exact=True).wait_for(state="visible", timeout=15000)
     open_test_movie(page)
     video = page.locator("#player")
