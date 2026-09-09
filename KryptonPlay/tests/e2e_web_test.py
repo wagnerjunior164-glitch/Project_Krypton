@@ -43,17 +43,37 @@ def login(page):
     page.wait_for_load_state("networkidle", timeout=15000)
 
 
+def wait_for_preferences_load(page):
+    with page.expect_response(
+        lambda response: response.url.rstrip("/").endswith("/api/v1/profile/preferences")
+        and response.request.method == "GET"
+        and response.ok,
+        timeout=15000,
+    ):
+        page.reload(wait_until="domcontentloaded", timeout=15000)
+
+
+def save_preferences_and_wait(page, button):
+    with page.expect_response(
+        lambda response: response.url.rstrip("/").endswith("/api/v1/profile/preferences")
+        and response.request.method == "PUT"
+        and response.ok,
+        timeout=15000,
+    ) as response_info:
+        button.click()
+    assert response_info.value.ok, "A API de preferências recusou o salvamento."
+
+
 def verify_saved_preferences(page):
     page.goto(f"{BASE_URL}/static/settings.html", wait_until="networkidle", timeout=15000)
     page.get_by_role("button", name="Aparência", exact=True).click()
     page.locator("#theme").select_option("light")
     page.locator("#language").select_option("pt-BR")
-    page.get_by_role("button", name="Salvar preferências", exact=True).first.click()
-    page.wait_for_timeout(250)
+    save_preferences_and_wait(page, page.get_by_role("button", name="Salvar preferências", exact=True).first)
     # Settings pages can keep background requests/polling active; networkidle is
-    # therefore not a reliable readiness condition for a reload. DOMContentLoaded
-    # plus the controls below gives us a deterministic UI-state assertion.
-    page.reload(wait_until="domcontentloaded", timeout=15000)
+    # therefore not a reliable readiness condition for a reload. Wait for the
+    # actual preferences GET triggered by page initialization instead.
+    wait_for_preferences_load(page)
     page.get_by_role("button", name="Aparência", exact=True).click()
     assert page.locator("#theme").input_value() == "light"
     assert page.locator("#language").input_value() == "pt-BR"
@@ -62,9 +82,8 @@ def verify_saved_preferences(page):
     page.locator("#resume").uncheck()
     page.locator("#autoplay").check()
     page.locator("#speed").select_option("1.5")
-    page.get_by_role("button", name="Salvar preferências", exact=True).last.click()
-    page.wait_for_timeout(250)
-    page.reload(wait_until="domcontentloaded", timeout=15000)
+    save_preferences_and_wait(page, page.get_by_role("button", name="Salvar preferências", exact=True).last)
+    wait_for_preferences_load(page)
     page.get_by_role("button", name="Reprodução", exact=True).click()
     assert page.locator("#resume").is_checked() is False
     assert page.locator("#autoplay").is_checked() is True
