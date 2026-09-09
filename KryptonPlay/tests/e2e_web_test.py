@@ -111,7 +111,21 @@ def reload_and_wait_for_preferences(page, expected, timeout_ms=15000):
 
 
 def save_preferences_and_wait(page, button, expected):
-    button.click()
+    try:
+        with page.expect_response(
+            lambda response: response.url.endswith("/api/v1/profile/preferences")
+            and response.request.method == "PUT",
+            timeout=15000,
+        ) as response_info:
+            button.click()
+        response = response_info.value
+    except PlaywrightTimeoutError as exc:
+        raise AssertionError("O botão de salvar não concluiu a requisição PUT de preferências em 15 s.") from exc
+
+    if not response.ok:
+        body = response.text()
+        raise AssertionError(f"PUT de preferências falhou: HTTP {response.status}: {body}")
+
     wait_for_saved_preferences(page, expected)
 
 
