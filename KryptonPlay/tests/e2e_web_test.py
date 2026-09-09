@@ -41,36 +41,67 @@ def login(page):
     page.wait_for_load_state("networkidle", timeout=15000)
 
 
-def wait_for_saved_preferences(page, expected, timeout_ms=15000):
-    page.wait_for_function(
+def fetch_saved_preferences(page):
+    return page.evaluate(
         """
-        async expected => {
+        async () => {
             const token = sessionStorage.getItem('kryptonplay_token');
-            if (!token) return false;
+            if (!token) return {error: 'missing session token'};
             const response = await fetch('/api/v1/profile/preferences', {
                 headers: {Authorization: 'Bearer ' + token},
                 cache: 'no-store'
             });
-            if (!response.ok) return false;
-            const data = await response.json();
-            const p = data.preferences || {};
-            return Object.entries(expected).every(([key, value]) => String(p[key]) === String(value));
+            const text = await response.text();
+            let body = null;
+            try { body = JSON.parse(text); } catch (_) { body = text; }
+            return {status: response.status, body};
         }
-        """,
-        arg=expected,
-        timeout=timeout_ms,
+        """
     )
+
+
+def wait_for_saved_preferences(page, expected, timeout_ms=15000):
+    try:
+        page.wait_for_function(
+            """
+            async expected => {
+                const token = sessionStorage.getItem('kryptonplay_token');
+                if (!token) return false;
+                const response = await fetch('/api/v1/profile/preferences', {
+                    headers: {Authorization: 'Bearer ' + token},
+                    cache: 'no-store'
+                });
+                if (!response.ok) return false;
+                const data = await response.json();
+                const p = data.preferences || {};
+                return Object.entries(expected).every(([key, value]) => String(p[key]) === String(value));
+            }
+            """,
+            arg=expected,
+            timeout=timeout_ms,
+        )
+    except PlaywrightTimeoutError as exc:
+        actual = fetch_saved_preferences(page)
+        controls = page.evaluate(
+            """
+            () => ({
+                theme: document.querySelector('#theme')?.value,
+                language: document.querySelector('#language')?.value,
+                resume: document.querySelector('#resume')?.checked,
+                autoplay: document.querySelector('#autoplay')?.checked,
+                speed: document.querySelector('#speed')?.value
+            })
+            """
+        )
+        raise AssertionError(
+            f"Preferências não persistiram dentro de {timeout_ms} ms. "
+            f"Esperado={expected!r}; API={actual!r}; controles={controls!r}"
+        ) from exc
 
 
 def reload_and_wait_for_preferences(page, expected, timeout_ms=15000):
     page.reload(wait_until="domcontentloaded", timeout=timeout_ms)
-
-    # The settings page normally invokes loadPreferences() during initialization.
-    # Invoke the same page function once explicitly after navigation as a deterministic
-    # synchronization point: this keeps the assertion tied to the real UI loader while
-    # avoiding a race between DOMContentLoaded and the asynchronous auth/preferences calls.
     page.evaluate("loadPreferences()")
-
     wait_for_saved_preferences(page, expected, timeout_ms=timeout_ms)
     page.wait_for_function(
         """
