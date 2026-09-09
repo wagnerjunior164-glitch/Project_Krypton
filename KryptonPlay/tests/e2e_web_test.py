@@ -41,62 +41,49 @@ def login(page):
     page.wait_for_load_state("networkidle", timeout=15000)
 
 
-def fetch_saved_preferences(page):
-    return page.evaluate(
-        """
-        async () => {
-            const token = sessionStorage.getItem('kryptonplay_token');
-            if (!token) return {error: 'missing session token'};
-            const response = await fetch('/api/v1/profile/preferences', {
-                headers: {Authorization: 'Bearer ' + token},
-                cache: 'no-store'
-            });
-            const text = await response.text();
-            let body = null;
-            try { body = JSON.parse(text); } catch (_) { body = text; }
-            return {status: response.status, body};
-        }
-        """
-    )
+def fetch_saved_preferences(page, token):
+    try:
+        response = page.request.get(
+            f"{BASE_URL}/api/v1/profile/preferences",
+            headers={"Authorization": f"Bearer {token}"},
+            timeout=5000,
+        )
+        if not response.ok:
+            return {"status": response.status, "body": None}
+        return {"status": response.status, "body": response.json()}
+    except Exception as exc:
+        return {"error": str(exc)}
 
 
 def wait_for_saved_preferences(page, expected, timeout_ms=15000):
-    try:
-        page.wait_for_function(
-            """
-            async expected => {
-                const token = sessionStorage.getItem('kryptonplay_token');
-                if (!token) return false;
-                const response = await fetch('/api/v1/profile/preferences', {
-                    headers: {Authorization: 'Bearer ' + token},
-                    cache: 'no-store'
-                });
-                if (!response.ok) return false;
-                const data = await response.json();
-                const p = data.preferences || {};
-                return Object.entries(expected).every(([key, value]) => String(p[key]) === String(value));
-            }
-            """,
-            arg=expected,
-            timeout=timeout_ms,
-        )
-    except PlaywrightTimeoutError as exc:
-        actual = fetch_saved_preferences(page)
-        controls = page.evaluate(
-            """
-            () => ({
-                theme: document.querySelector('#theme')?.value,
-                language: document.querySelector('#language')?.value,
-                resume: document.querySelector('#resume')?.checked,
-                autoplay: document.querySelector('#autoplay')?.checked,
-                speed: document.querySelector('#speed')?.value
-            })
-            """
-        )
-        raise AssertionError(
-            f"Preferências não persistiram dentro de {timeout_ms} ms. "
-            f"Esperado={expected!r}; API={actual!r}; controles={controls!r}"
-        ) from exc
+    token = page.evaluate("sessionStorage.getItem('kryptonplay_token')")
+    if not token:
+        raise AssertionError("Sessão autenticada não está disponível ao validar preferências.")
+
+    deadline = time.time() + timeout_ms / 1000
+    last_api = None
+    while time.time() < deadline:
+        last_api = fetch_saved_preferences(page, token)
+        preferences = (last_api.get("body") or {}).get("preferences", {}) if isinstance(last_api, dict) else {}
+        if all(str(preferences.get(key)) == str(value) for key, value in expected.items()):
+            return
+        time.sleep(0.25)
+
+    controls = page.evaluate(
+        """
+        () => ({
+            theme: document.querySelector('#theme')?.value,
+            language: document.querySelector('#language')?.value,
+            resume: document.querySelector('#resume')?.checked,
+            autoplay: document.querySelector('#autoplay')?.checked,
+            speed: document.querySelector('#speed')?.value
+        })
+        """
+    )
+    raise AssertionError(
+        f"Preferências não persistiram dentro de {timeout_ms} ms. "
+        f"Esperado={expected!r}; API={last_api!r}; controles={controls!r}"
+    )
 
 
 def reload_and_wait_for_preferences(page, expected, timeout_ms=15000):
