@@ -50,7 +50,10 @@ def verify_saved_preferences(page):
     page.locator("#language").select_option("pt-BR")
     page.get_by_role("button", name="Salvar preferências", exact=True).first.click()
     page.wait_for_timeout(250)
-    page.reload(wait_until="networkidle")
+    # Settings pages can keep background requests/polling active; networkidle is
+    # therefore not a reliable readiness condition for a reload. DOMContentLoaded
+    # plus the controls below gives us a deterministic UI-state assertion.
+    page.reload(wait_until="domcontentloaded", timeout=15000)
     page.get_by_role("button", name="Aparência", exact=True).click()
     assert page.locator("#theme").input_value() == "light"
     assert page.locator("#language").input_value() == "pt-BR"
@@ -61,7 +64,7 @@ def verify_saved_preferences(page):
     page.locator("#speed").select_option("1.5")
     page.get_by_role("button", name="Salvar preferências", exact=True).last.click()
     page.wait_for_timeout(250)
-    page.reload(wait_until="networkidle")
+    page.reload(wait_until="domcontentloaded", timeout=15000)
     page.get_by_role("button", name="Reprodução", exact=True).click()
     assert page.locator("#resume").is_checked() is False
     assert page.locator("#autoplay").is_checked() is True
