@@ -64,6 +64,14 @@ def wait_for_saved_preferences(page, expected, timeout_ms=15000):
 
 def reload_and_wait_for_preferences(page, expected, timeout_ms=15000):
     page.reload(wait_until="domcontentloaded", timeout=timeout_ms)
+
+    # The settings page normally invokes loadPreferences() during initialization.
+    # Invoke the same page function once explicitly after navigation as a deterministic
+    # synchronization point: this keeps the assertion tied to the real UI loader while
+    # avoiding a race between DOMContentLoaded and the asynchronous auth/preferences calls.
+    page.evaluate("loadPreferences()")
+
+    wait_for_saved_preferences(page, expected, timeout_ms=timeout_ms)
     page.wait_for_function(
         """
         expected => {
