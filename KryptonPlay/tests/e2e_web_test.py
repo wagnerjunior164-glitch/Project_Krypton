@@ -22,7 +22,6 @@ def wait_for_video_ready(video, timeout_ms=15000):
 
 
 def open_test_movie(page):
-    # Click the actual playback action, not the title heading.
     card = page.locator("article.card").filter(has_text="Filme Teste").first
     card.get_by_role("button", name="Reproduzir").click()
     page.locator("#player-area").wait_for(state="visible", timeout=15000)
@@ -37,15 +36,12 @@ def login(page):
     user_card = page.locator(".user-card").filter(has_text="admin").first
     user_card.wait_for(state="visible", timeout=15000)
     user_card.click()
-    password = page.locator("#password")
-    password.fill(PASSWORD)
+    page.locator("#password").fill(PASSWORD)
     page.get_by_role("button", name="Entrar", exact=True).click()
     page.wait_for_load_state("networkidle", timeout=15000)
 
 
 def wait_for_saved_preferences(page, expected, timeout_ms=15000):
-    # Poll the real authenticated API until the saved state is visible. This is
-    # deterministic even when the settings page performs background requests.
     page.wait_for_function(
         """
         async expected => {
@@ -67,9 +63,6 @@ def wait_for_saved_preferences(page, expected, timeout_ms=15000):
 
 
 def reload_and_wait_for_preferences(page, expected, timeout_ms=15000):
-    # Do not depend on networkidle: the settings page may keep background
-    # polling active. Instead reload and wait for the actual form controls to be
-    # populated with the values returned by the page's normal initialization.
     page.reload(wait_until="domcontentloaded", timeout=timeout_ms)
     page.wait_for_function(
         """
@@ -82,8 +75,8 @@ def reload_and_wait_for_preferences(page, expected, timeout_ms=15000):
             if (!theme || !language || !resume || !autoplay || !speed) return false;
             return theme.value === String(expected.theme)
                 && language.value === String(expected.language)
-                && resume.checked === Boolean(expected.resume)
-                && autoplay.checked === Boolean(expected.autoplay)
+                && resume.checked === (String(expected.resume) === 'true')
+                && autoplay.checked === (String(expected.autoplay) === 'true')
                 && speed.value === String(expected.speed);
         }
         """,
@@ -102,13 +95,7 @@ def verify_saved_preferences(page):
     page.get_by_role("button", name="Aparência", exact=True).click()
     page.locator("#theme").select_option("light")
     page.locator("#language").select_option("pt-BR")
-    appearance = {
-        "theme": "light",
-        "language": "pt-BR",
-        "resume": "true",
-        "autoplay": "false",
-        "speed": "1",
-    }
+    appearance = {"theme": "light", "language": "pt-BR", "resume": "true", "autoplay": "false", "speed": "1"}
     save_preferences_and_wait(page, page.get_by_role("button", name="Salvar preferências", exact=True).first, appearance)
     reload_and_wait_for_preferences(page, appearance)
     page.get_by_role("button", name="Aparência", exact=True).click()
@@ -119,13 +106,7 @@ def verify_saved_preferences(page):
     page.locator("#resume").uncheck()
     page.locator("#autoplay").check()
     page.locator("#speed").select_option("1.5")
-    playback = {
-        "theme": "light",
-        "language": "pt-BR",
-        "resume": "false",
-        "autoplay": "true",
-        "speed": "1.5",
-    }
+    playback = {"theme": "light", "language": "pt-BR", "resume": "false", "autoplay": "true", "speed": "1.5"}
     save_preferences_and_wait(page, page.get_by_role("button", name="Salvar preferências", exact=True).last, playback)
     reload_and_wait_for_preferences(page, playback)
     page.get_by_role("button", name="Reprodução", exact=True).click()
@@ -186,7 +167,6 @@ def main():
         resumed = video.evaluate("v => v.currentTime")
         assert resumed > 0, f"Progresso não foi retomado: {resumed_state}, currentTime={resumed}"
 
-        # Verify that appearance and playback preferences persist through the real Web UI.
         verify_saved_preferences(page)
         verify_saved_playback_behavior(page)
 
