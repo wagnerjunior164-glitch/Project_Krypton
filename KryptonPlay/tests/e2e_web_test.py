@@ -43,25 +43,58 @@ def login(page):
     page.wait_for_load_state("networkidle", timeout=15000)
 
 
-def wait_for_preferences_load(page):
-    with page.expect_response(
-        lambda response: response.url.rstrip("/").endswith("/api/v1/profile/preferences")
-        and response.request.method == "GET"
-        and response.ok,
-        timeout=15000,
-    ):
-        page.reload(wait_until="domcontentloaded", timeout=15000)
+def wait_for_saved_preferences(page, expected, timeout_ms=15000):
+    # Poll the real authenticated API until the saved state is visible. This is
+    # deterministic even when the settings page performs background requests.
+    page.wait_for_function(
+        """
+        async expected => {
+            const token = sessionStorage.getItem('kryptonplay_token');
+            if (!token) return false;
+            const response = await fetch('/api/v1/profile/preferences', {
+                headers: {Authorization: 'Bearer ' + token},
+                cache: 'no-store'
+            });
+            if (!response.ok) return false;
+            const data = await response.json();
+            const p = data.preferences || {};
+            return Object.entries(expected).every(([key, value]) => String(p[key]) === String(value));
+        }
+        """,
+        arg=expected,
+        timeout=timeout_ms,
+    )
 
 
-def save_preferences_and_wait(page, button):
-    with page.expect_response(
-        lambda response: response.url.rstrip("/").endswith("/api/v1/profile/preferences")
-        and response.request.method == "PUT"
-        and response.ok,
-        timeout=15000,
-    ) as response_info:
-        button.click()
-    assert response_info.value.ok, "A API de preferências recusou o salvamento."
+def reload_and_wait_for_preferences(page, expected, timeout_ms=15000):
+    # Do not depend on networkidle: the settings page may keep background
+    # polling active. Instead reload and wait for the actual form controls to be
+    # populated with the values returned by the page's normal initialization.
+    page.reload(wait_until="domcontentloaded", timeout=timeout_ms)
+    page.wait_for_function(
+        """
+        expected => {
+            const theme = document.querySelector('#theme');
+            const language = document.querySelector('#language');
+            const resume = document.querySelector('#resume');
+            const autoplay = document.querySelector('#autoplay');
+            const speed = document.querySelector('#speed');
+            if (!theme || !language || !resume || !autoplay || !speed) return false;
+            return theme.value === String(expected.theme)
+                && language.value === String(expected.language)
+                && resume.checked === Boolean(expected.resume)
+                && autoplay.checked === Boolean(expected.autoplay)
+                && speed.value === String(expected.speed);
+        }
+        """,
+        arg=expected,
+        timeout=timeout_ms,
+    )
+
+
+def save_preferences_and_wait(page, button, expected):
+    button.click()
+    wait_for_saved_preferences(page, expected)
 
 
 def verify_saved_preferences(page):
@@ -69,11 +102,15 @@ def verify_saved_preferences(page):
     page.get_by_role("button", name="Aparência", exact=True).click()
     page.locator("#theme").select_option("light")
     page.locator("#language").select_option("pt-BR")
-    save_preferences_and_wait(page, page.get_by_role("button", name="Salvar preferências", exact=True).first)
-    # Settings pages can keep background requests/polling active; networkidle is
-    # therefore not a reliable readiness condition for a reload. Wait for the
-    # actual preferences GET triggered by page initialization instead.
-    wait_for_preferences_load(page)
+    appearance = {
+        "theme": "light",
+        "language": "pt-BR",
+        "resume": "true",
+        "autoplay": "false",
+        "speed": "1",
+    }
+    save_preferences_and_wait(page, page.get_by_role("button", name="Salvar preferências", exact=True).first, appearance)
+    reload_and_wait_for_preferences(page, appearance)
     page.get_by_role("button", name="Aparência", exact=True).click()
     assert page.locator("#theme").input_value() == "light"
     assert page.locator("#language").input_value() == "pt-BR"
@@ -82,8 +119,15 @@ def verify_saved_preferences(page):
     page.locator("#resume").uncheck()
     page.locator("#autoplay").check()
     page.locator("#speed").select_option("1.5")
-    save_preferences_and_wait(page, page.get_by_role("button", name="Salvar preferências", exact=True).last)
-    wait_for_preferences_load(page)
+    playback = {
+        "theme": "light",
+        "language": "pt-BR",
+        "resume": "false",
+        "autoplay": "true",
+        "speed": "1.5",
+    }
+    save_preferences_and_wait(page, page.get_by_role("button", name="Salvar preferências", exact=True).last, playback)
+    reload_and_wait_for_preferences(page, playback)
     page.get_by_role("button", name="Reprodução", exact=True).click()
     assert page.locator("#resume").is_checked() is False
     assert page.locator("#autoplay").is_checked() is True
