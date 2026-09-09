@@ -128,6 +128,12 @@ def verify_saved_preferences(page):
     page.get_by_role("button", name="Aparência", exact=True).click()
     page.locator("#theme").select_option("light")
     page.locator("#language").select_option("pt-BR")
+    # A primeira etapa deve ser determinística: não podemos presumir o estado
+    # que ficou no banco após os testes anteriores. Definimos explicitamente
+    # todos os controles que fazem parte do contrato verificado.
+    page.locator("#resume").check()
+    page.locator("#autoplay").uncheck()
+    page.locator("#speed").select_option("1")
     appearance = {"theme": "light", "language": "pt-BR", "resume": "true", "autoplay": "false", "speed": "1"}
     save_preferences_and_wait(page, page.get_by_role("button", name="Salvar preferências", exact=True).first, appearance)
     assert_preferences(api_get_preferences(page), appearance, "Aparência")
