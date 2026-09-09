@@ -101,7 +101,6 @@ def wait_for_saved_preferences(page, expected, timeout_ms=15000):
 
 def reload_and_wait_for_preferences(page, expected, timeout_ms=15000):
     page.reload(wait_until="domcontentloaded", timeout=timeout_ms)
-    page.evaluate("loadPreferences()")
     wait_for_saved_preferences(page, expected, timeout_ms=timeout_ms)
     page.wait_for_function(
         """
