@@ -29,8 +29,28 @@ def open_test_movie(page):
 
 
 def login(page):
-    page.goto(BASE_URL, wait_until="networkidle", timeout=15000)
-    page.get_by_role("button", name="Usar este servidor", exact=True).wait_for(state="visible", timeout=15000)
+    setup_response = None
+    try:
+        with page.expect_response(
+            lambda response: response.url.endswith("/api/setup/status")
+            and response.request.method == "GET",
+            timeout=15000,
+        ) as response_info:
+            page.goto(BASE_URL, wait_until="domcontentloaded", timeout=15000)
+        setup_response = response_info.value
+    except PlaywrightTimeoutError as exc:
+        raise AssertionError("A página inicial não concluiu GET de /api/setup/status em 15 s.") from exc
+
+    if not setup_response.ok:
+        body = setup_response.text()
+        raise AssertionError(f"GET de /api/setup/status falhou: HTTP {setup_response.status}: {body}")
+
+    setup_data = setup_response.json()
+    if not setup_data.get("completed"):
+        raise AssertionError(f"O servidor não está configurado segundo /api/setup/status: {setup_data}")
+
+    use_local = page.locator("#use-local")
+    use_local.wait_for(state="visible", timeout=15000)
     page.get_by_role("button", name="Usar este servidor", exact=True).click()
     page.goto(f"{BASE_URL}/static/player.html", wait_until="networkidle", timeout=15000)
     user_card = page.locator(".user-card").filter(has_text="admin").first
