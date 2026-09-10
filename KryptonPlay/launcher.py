@@ -51,6 +51,12 @@ def apply_saved_server_settings():
         access=row[0] if row else "local";server_config["host"]="0.0.0.0" if access=="lan" else "127.0.0.1"
     except sqlite3.Error:pass
 apply_saved_server_settings()
+# Validation harnesses may request an isolated port without changing the normal
+# application configuration. Normal launches continue to use the saved port.
+_test_port=os.environ.get("KRYPTONPLAY_TEST_PORT")
+if _test_port:
+    try:server_config["port"]=int(_test_port)
+    except (TypeError,ValueError):pass
 local_discovery=LocalDiscovery()
 def start_local_discovery():
     try:local_discovery.start(int(server_config["port"]),"lan" if server_config.get("host")=="0.0.0.0" else "local")
@@ -77,4 +83,7 @@ if __name__=="__main__":
     restart_child="--restart-child" in sys.argv
     if not restart_child and try_auto_update():raise SystemExit(0)
     if restart_child:time.sleep(2)
-    start_local_discovery();threading.Thread(target=open_browser,daemon=True).start();uvicorn.run(app,host=server_config["host"],port=server_config["port"],reload=False,log_config=None)
+    start_local_discovery()
+    if os.environ.get("KRYPTONPLAY_NO_BROWSER","0").strip().lower() not in {"1","true","yes","on"}:
+        threading.Thread(target=open_browser,daemon=True).start()
+    uvicorn.run(app,host=server_config["host"],port=server_config["port"],reload=False,log_config=None)
