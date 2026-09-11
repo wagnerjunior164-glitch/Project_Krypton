@@ -72,6 +72,72 @@ Em especial:
 
 Este arquivo é a referência consolidada para o estado atual da publicação.
 
+## Modelo oficial de desenvolvimento privado e público
+
+A partir da publicação inicial, o ProjectKrypton passa a operar com **dois ambientes de desenvolvimento relacionados, porém independentes**:
+
+### 1. Repositório privado — desenvolvimento e controle
+
+`wagnerjunior164-glitch/ProjectKrypton` é o ambiente principal de desenvolvimento e controle técnico.
+
+É nele que devem ocorrer, preferencialmente:
+
+- desenvolvimento de novas funcionalidades;
+- refatorações e correções ainda em elaboração;
+- testes exploratórios e preparação de mudanças;
+- evolução da documentação interna;
+- preparação de uma nova versão candidata à publicação.
+
+O repositório privado não deve ser tratado como um espelho automático do repositório público.
+
+### 2. Repositório público — produto oficial disponibilizado
+
+`wagnerjunior164-glitch/Project_Krypton` é o ambiente oficial do produto publicado.
+
+A branch `main` representa o estado público disponibilizado aos usuários. Alterações que cheguem a `main` devem estar prontas para uso público e receber a validação proporcional ao seu impacto.
+
+O repositório público também pode receber correções urgentes diretamente quando isso for necessário para resolver um problema já disponibilizado aos usuários.
+
+### 3. Fluxo normal de promoção
+
+O fluxo preferencial para novas evoluções é:
+
+`ProjectKrypton (privado)` → `validação` → `public-candidate` → `validação final necessária` → `Project_Krypton/main`
+
+A branch `public-candidate` funciona como ponto de preparação e confirmação do conteúdo que será promovido ao ambiente público.
+
+Não existe sincronização automática bidirecional entre os dois repositórios. Uma mudança só deve ser promovida ao público quando estiver pronta para isso.
+
+### 4. Correções urgentes no público
+
+Se um problema crítico exigir uma correção direta no repositório público:
+
+1. corrigir o problema no `Project_Krypton`;
+2. executar a validação proporcional ao impacto;
+3. publicar a correção em `main`;
+4. reproduzir a mesma correção no `ProjectKrypton` privado, mantendo os ambientes alinhados quanto à correção.
+
+A correção pública não deve permanecer apenas no repositório público, pois isso criaria divergência técnica entre os ambientes.
+
+### 5. Regra de validação após mudanças
+
+A validação futura deve ser proporcional à mudança:
+
+- mudança localizada e de baixo impacto: validação específica;
+- mudança funcional relevante: testes do módulo e fluxos afetados;
+- mudança que atinja diretamente escopo certificado ou componentes críticos: ampliar a validação conforme o impacto;
+- não reexecutar automaticamente toda a cadeia Parts 01–09 para toda alteração, salvo quando houver justificativa técnica.
+
+As certificações anteriores permanecem como evidência do estado certificado e não precisam ser invalidadas por mudanças que não afetem seu escopo.
+
+### 6. Regra de independência dos ambientes
+
+Os dois repositórios compartilham a evolução do produto, mas **não compartilham automaticamente histórico Git, branches ou alterações**.
+
+O privado continua sendo a referência de desenvolvimento/controladoria. O público continua sendo a referência do produto efetivamente disponibilizado.
+
+Essa separação é intencional e deve ser preservada.
+
 ## Pós-publicação
 
 A partir deste ponto, o projeto entra em manutenção pública normal. Não existe um novo gate obrigatório antes de continuar o desenvolvimento.
@@ -97,4 +163,6 @@ A Part 10 continua **suspensa para reavaliação futura**. Ela não é requisito
 
 **REPOSITÓRIO PÚBLICO: `main` em `3d8e3bd762ad2a87a63cc931f51b2fa19e33f0e4`.**
 
-A partir de agora, correções e evoluções podem ser feitas normalmente no repositório público, com validação proporcional ao impacto de cada mudança.
+**MODELO DE DESENVOLVIMENTO: PRIVADO COMO AMBIENTE PRINCIPAL; PÚBLICO COMO PRODUTO OFICIAL; PROMOÇÃO CONTROLADA ENTRE OS DOIS, SEM SINCRONIZAÇÃO AUTOMÁTICA.**
+
+A partir de agora, correções e evoluções podem ser feitas normalmente nos dois ambientes, respeitando o fluxo e as regras documentados acima.
