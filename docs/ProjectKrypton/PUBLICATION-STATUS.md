@@ -13,10 +13,11 @@ A publicação preserva o repositório privado `wagnerjunior164-glitch/ProjectKr
 ## Publicação realizada
 
 - Repositório público: `wagnerjunior164-glitch/Project_Krypton`.
-- Branch pública publicada: `main`.
-- Commit publicado: `3d8e3bd762ad2a87a63cc931f51b2fa19e33f0e4`.
+- Branch pública: `main`.
+- Commit da publicação inicial: `3d8e3bd762ad2a87a63cc931f51b2fa19e33f0e4`.
 - Branch de origem preservada: `public-candidate`.
-- O `main` público foi atualizado para o mesmo commit certificado presente em `public-candidate`.
+- A publicação inicial levou para `main` o mesmo conteúdo certificado presente em `public-candidate`.
+- Alterações documentais posteriores podem avançar `main` além do commit da publicação inicial sem invalidar a certificação do conteúdo originalmente publicado.
 - O repositório privado `ProjectKrypton` não foi alterado pela publicação.
 
 ## Certificação técnica
@@ -46,6 +47,10 @@ Não há necessidade de repetir Parts 01–09 apenas por causa da publicação. 
 - E2E público real: run `34275672859`, job `102227956236` — **SUCCESS**, runner `PC`.
 - Full integrado histórico: run `34276601584`, job `102236534720` — **SUCCESS** no repositório privado; permanece como evidência histórica e não substitui a certificação direta do candidato público.
 
+### Certificação final atual
+
+A validação unificada posterior consolidou a certificação oficial do candidato público em Parts 01–09. Essa execução é a autoridade para o estado certificado atual; os runs anteriores acima permanecem como evidências históricas dos gates específicos da preparação.
+
 ## Estado das correções de segurança
 
 As correções aplicadas durante a preparação pública fazem parte do estado publicado e certificado:
@@ -60,7 +65,7 @@ Essas alterações foram incorporadas ao candidato certificado antes da publica�
 
 ## Documentação histórica
 
-Os documentos de lotes datados de 2026-09-08 preservam o estado e as decisões daquela fase da auditoria. Quando algum deles disser que FULL/E2E/security, dependências ou release ainda estavam pendentes, essa afirmação deve ser interpretada como **histórica**.
+Os documentos de lotes datados de 2026-09-08 preservam o estado e as decisões daquela fase da auditoria. Quando algum deles disser que FULL/E2E/security, dependências ou release ainda estavam pendentes, essa afirmação deve ser interpretada como **histórica**, e não como o estado atual do produto.
 
 Em especial:
 
@@ -138,15 +143,36 @@ O privado continua sendo a referência de desenvolvimento/controladoria. O públ
 
 Essa separação é intencional e deve ser preservada.
 
+## Arquitetura de desenvolvimento, build e diagnóstico
+
+A evolução do projeto passa a usar uma arquitetura modular de desenvolvimento separada da certificação pública.
+
+A regra é manter três responsabilidades distintas:
+
+1. **Certificação pública:** Parts 01–09, cadeia oficial que comprova o estado certificado do produto público.
+2. **Desenvolvimento/build/diagnóstico:** workflow modular capaz de executar o conjunto completo ou apenas uma Part, com seleção por módulo e preservação detalhada das evidências.
+3. **Teste operacional do atualizador:** workflow específico para o cenário Release A → Release B.
+
+O workflow de desenvolvimento deve ser capaz de trabalhar com:
+
+- todos os módulos ou um módulo individual;
+- todas as Parts;
+- uma Part específica;
+- uma Part e todas as Parts seguintes.
+
+Quando uma capacidade não fizer sentido para determinado módulo, o resultado deve ser `NOT_APPLICABLE`, e não `PASS` artificial.
+
+A arquitetura deve preservar, no mínimo, logs completos, comandos, códigos de saída, hashes, versões, duração, resultados por etapa, estado do ambiente, artefatos de build/installer e evidências de falhas. A implementação operacional e os caminhos físicos do runner permanecem documentados no ambiente privado, não sendo tratados como interface pública do produto.
+
+A linha de runtime de referência para a arquitetura universal de desenvolvimento é **Node 24.x LTS**, com registro da versão de patch efetivamente utilizada em cada execução quando Node for aplicável.
+
+Essa arquitetura não altera a certificação Parts 01–09 e não reativa a Part 10 suspensa.
+
 ## Teste operacional automatizado do atualizador
 
 O teste do atualizador foi deliberadamente separado da certificação Parts 01–09 e não altera o workflow unificado.
 
-O runner Windows `PC` já preserva localmente os três binários produzidos pela Part 09 em:
-
-`C:\Users\Public\ProjectKryptonRunner\reports\public-candidate-final\<run-id>-<attempt>\part09-artifacts\`
-
-A validação operacional reutiliza diretamente esse produto gerado pelo runner, confere os SHA-256 e instala o `KryptonPlay-Windows-Setup.exe` como versão A.
+O runner Windows `PC` preserva localmente os três binários produzidos pela Part 09 em uma área persistente de evidências. A validação operacional reutiliza diretamente esse produto gerado pelo runner, confere os SHA-256 e instala o `KryptonPlay-Windows-Setup.exe` como versão A.
 
 Foi criado no repositório privado o workflow:
 
@@ -156,7 +182,7 @@ Ele automatiza:
 
 1. localização da evidência Part 09 mais recente no runner;
 2. conferência dos três binários e seus SHA-256;
-3. validação de que a Release pública alvo é a `latest` e possui `KryptonPlay-Windows-Setup.exe` com digest SHA-256;
+3. validação da Release pública alvo e do asset `KryptonPlay-Windows-Setup.exe` com digest SHA-256;
 4. proteção contra sobrescrever uma instalação externa já existente;
 5. instalação da versão A;
 6. habilitação da atualização automática e confirmação de que uma versão mais nova foi detectada;
@@ -167,7 +193,11 @@ Ele automatiza:
 11. desinstalação e limpeza da instalação de teste;
 12. preservação de evidência no diretório persistente do runner.
 
-O workflow exige somente a identificação da Release B (`target_tag`). A Release pública precisa existir previamente; o workflow não cria nem altera Releases públicas automaticamente, evitando transformar o produto publicado em uma Release de teste sem decisão explícita.
+O workflow aceita `target_tag` e `source_run` como campos opcionais. Com `auto=true` e esses campos vazios, ele localiza automaticamente a evidência Part 09 mais recente no runner e usa a Release pública `latest` como candidata à Release B.
+
+A Release B pública precisa existir previamente e possuir `KryptonPlay-Windows-Setup.exe` com digest SHA-256 válido. O workflow não cria nem altera Releases públicas automaticamente.
+
+A primeira tentativa automatizada, run `34595843491`, confirmou corretamente a descoberta automática da evidência Part 09 e os hashes dos três binários, mas terminou antes da instalação porque o repositório público ainda não possuía nenhuma GitHub Release (`/releases` retornou lista vazia). Portanto, esse run **não representa falha do runner nem do updater**; representa a ausência da pré-condição Release B.
 
 Esse teste valida o **fluxo operacional real do updater**, mas não transforma o teste em requisito das Parts 01–09 nem reativa a Part 10.
 
@@ -198,7 +228,7 @@ A Part 10 continua **suspensa para reavaliação futura**. Ela não é requisito
 
 **CERTIFICAÇÃO TÉCNICA: APROVADA — PARTS 01–09.**
 
-**REPOSITÓRIO PÚBLICO: `main` em `3d8e3bd762ad2a87a63cc931f51b2fa19e33f0e4`.**
+**COMMIT DA PUBLICAÇÃO INICIAL: `3d8e3bd762ad2a87a63cc931f51b2fa19e33f0e4`.**
 
 **MODELO DE DESENVOLVIMENTO: PRIVADO COMO AMBIENTE PRINCIPAL; PÚBLICO COMO PRODUTO OFICIAL; PROMOÇÃO CONTROLADA ENTRE OS DOIS, SEM SINCRONIZAÇÃO AUTOMÁTICA.**
 
