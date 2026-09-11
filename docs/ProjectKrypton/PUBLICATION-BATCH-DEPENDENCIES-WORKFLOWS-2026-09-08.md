@@ -1,35 +1,40 @@
 # Lote de publicação — dependências e workflows
 
-Data: 2026-09-08
+Data original: 2026-09-08
+Status da revisão: **HISTÓRICO — encerrado**
+
+## Objetivo original
+
+Registrar a revisão de dependências e workflows realizada durante a preparação inicial da publicação pública.
 
 ## Dependências
 
-`KryptonPlay/requirements.txt` contém somente:
+Na fase inicial, `KryptonPlay/requirements.txt` ainda não possuía pins. A ausência de versões fixadas era registrada como ponto de decisão antes da release final.
+
+Posteriormente, o estado certificado passou a usar:
 
 ```text
-fastapi
-uvicorn[standard]
-zeroconf
+fastapi==0.141.1
+uvicorn[standard]==0.52.4
+zeroconf==0.151.3
 ```
 
-A validação integrada no runner `PC` confirmou a instalação e execução dessas dependências com Python `3.12.10`.
-
-Não foram fixadas versões arbitrariamente durante a auditoria. A ausência de pins reduz a reprodutibilidade entre ambientes e permanece como ponto de decisão antes da release final: fixar versões somente após uma revisão de compatibilidade/segurança e atualizar o teste integrado para validar o conjunto fixado.
-
-Não foram encontrados tokens, URLs privadas, dependências por caminho local ou artefatos de ambiente no manifesto.
+A instalação e execução dessas dependências foram validadas no runner `PC` durante a certificação pública. Portanto, a pendência de pins registrada neste lote foi encerrada.
 
 ## Workflows públicos
 
-A árvore `public-candidate` auditada não contém workflows GitHub Actions públicos. Isso significa que, no estado atual, nenhum workflow público executa código de PR não confiável em um runner self-hosted privado.
+Na árvore pública auditada originalmente não havia workflows GitHub Actions públicos permanentes. Os workflows temporários usados na auditoria permaneceram no repositório privado e fizeram clone controlado da árvore pública para validação.
 
-Os workflows temporários usados nesta auditoria permaneceram exclusivamente no repositório privado e apenas fizeram clone controlado da branch pública para validação. Eles não foram publicados na árvore candidata.
+Essa separação evitou expor o runner self-hosted `PC` a execução de código não confiável durante a auditoria.
 
-Antes da release final, se workflows forem adicionados ao repositório público, devem usar `permissions` mínimas, evitar `pull_request_target` para executar código não confiável, não expor o runner self-hosted `PC` a PRs públicos e manter segredos fora do processo de validação pública.
+A ausência de workflows públicos não deve ser interpretada como falha do produto. O desenvolvimento, build e certificação continuam podendo ser executados por workflows privados/controlados, enquanto o repositório público mantém a árvore do produto.
 
-## Decisão
+Caso workflows sejam adicionados futuramente ao repositório público, devem manter permissões mínimas, não executar código não confiável em runners self-hosted privados e manter segredos fora do processo público.
 
-A revisão de dependências/workflows está **CONCLUÍDA para o estado atual da árvore**.
+## Decisão histórica
 
-Pendência de release: decidir e documentar o conjunto de versões das dependências e desenhar os workflows públicos finais sem acesso ao runner privado.
+A revisão de dependências/workflows foi concluída como gate da publicação inicial. As pendências de release registradas no documento original foram posteriormente encerradas pela build, installer, validação final Parts 01–09 e publicação em `main`.
 
-A release permanece bloqueada até `build`, `installer`, `full` e auditoria final da árvore/histórico.
+Este arquivo não representa um bloqueio atual.
+
+Para o estado atual, consultar `docs/ProjectKrypton/PUBLICATION-STATUS.md`.
