@@ -138,6 +138,43 @@ O privado continua sendo a referência de desenvolvimento/controladoria. O públ
 
 Essa separação é intencional e deve ser preservada.
 
+## Teste operacional automatizado do atualizador
+
+O teste do atualizador foi deliberadamente separado da certificação Parts 01–09 e não altera o workflow unificado.
+
+O runner Windows `PC` já preserva localmente os três binários produzidos pela Part 09 em:
+
+`C:\Users\Public\ProjectKryptonRunner\reports\public-candidate-final\<run-id>-<attempt>\part09-artifacts\`
+
+A validação operacional reutiliza diretamente esse produto gerado pelo runner, confere os SHA-256 e instala o `KryptonPlay-Windows-Setup.exe` como versão A.
+
+Foi criado no repositório privado o workflow:
+
+`.github/workflows/updater-operational-validation.yml`
+
+Ele automatiza:
+
+1. localização da evidência Part 09 mais recente no runner;
+2. conferência dos três binários e seus SHA-256;
+3. validação de que a Release pública alvo é a `latest` e possui `KryptonPlay-Windows-Setup.exe` com digest SHA-256;
+4. proteção contra sobrescrever uma instalação externa já existente;
+5. instalação da versão A;
+6. habilitação da atualização automática e confirmação de que uma versão mais nova foi detectada;
+7. fechamento da versão A;
+8. novo lançamento do KryptonPlay, exercitando o caminho automático do launcher;
+9. espera pela execução do `KryptonPlay-Updater.exe` e pela instalação da versão B;
+10. confirmação da nova versão e da notificação `update_completed`;
+11. desinstalação e limpeza da instalação de teste;
+12. preservação de evidência no diretório persistente do runner.
+
+O workflow exige somente a identificação da Release B (`target_tag`). A Release pública precisa existir previamente; o workflow não cria nem altera Releases públicas automaticamente, evitando transformar o produto publicado em uma Release de teste sem decisão explícita.
+
+Esse teste valida o **fluxo operacional real do updater**, mas não transforma o teste em requisito das Parts 01–09 nem reativa a Part 10.
+
+### Limitação importante
+
+A validação automatizada acima testa a atualização automática disparada pelo launcher na inicialização. O horário programado de atualização é uma capacidade distinta e pode receber uma validação temporal específica posteriormente, caso seja necessário certificar também esse comportamento.
+
 ## Pós-publicação
 
 A partir deste ponto, o projeto entra em manutenção pública normal. Não existe um novo gate obrigatório antes de continuar o desenvolvimento.
