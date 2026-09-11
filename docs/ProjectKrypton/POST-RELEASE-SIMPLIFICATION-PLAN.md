@@ -1,141 +1,145 @@
 # Plano de Simplificação Pós-Release do ProjectKrypton
 
-Data: 2026-09-08
+Data original: 2026-09-08
+Status: **PLANO FUTURO / ARQUITETURA EM EVOLUÇÃO**
 
 ## Objetivo
 
-Depois da primeira publicação pública estável, transformar a infraestrutura criada durante a auditoria de release em um CI/CD permanente, menor, previsível e fácil de manter.
+Depois da primeira publicação pública estável, transformar a infraestrutura criada durante a auditoria de release em uma operação permanente, previsível, modular e fácil de manter.
 
-A regra principal é: **preservar os mecanismos que protegem a qualidade e remover tudo que existe apenas para esta primeira publicação.**
+A regra principal permanece: **preservar os mecanismos que protegem a qualidade e remover ou arquivar o que existe apenas para uma auditoria histórica específica.**
+
+A primeira publicação já foi concluída. Portanto, este documento não é mais um plano para desbloquear a release inicial; ele orienta a evolução pós-publicação.
 
 ## 1. O que permanece permanentemente
 
-### CI oficial
+### Certificação pública
 
-Manter um fluxo oficial de validação com níveis progressivos:
+Manter a cadeia oficial de certificação Parts 01–09. Ela comprova o estado certificado do produto público e não deve ser alterada para incorporar o teste específico do updater.
 
-`quick → functional → build → installer → full`
+### Desenvolvimento, build e diagnóstico
 
-O workflow unificado existente deve ser a base. A nomenclatura e os níveis podem ser simplificados durante a limpeza, mas não devem existir vários pipelines permanentes fazendo a mesma coisa.
+Manter uma arquitetura modular separada para desenvolvimento que possa executar:
+
+- todos os módulos;
+- um módulo individual;
+- todas as Parts;
+- uma Part específica;
+- uma Part e todas as seguintes.
+
+A execução deve preservar logs e evidências completas e classificar corretamente `PASS`, `FAIL`, `SKIPPED`, `NOT_APPLICABLE`, `PRECONDITION_FAILED` e `INCOMPLETE_EVIDENCE`.
+
+### Teste operacional do updater
+
+Manter o teste Release A → Release B separado da certificação Parts 01–09. Ele valida o comportamento operacional do atualizador sem transformar o updater em requisito automático de toda certificação.
 
 ### Testes
 
-Manter:
+Manter, conforme aplicabilidade do módulo:
 
 - compilação/sintaxe;
 - testes unitários e funcionais;
 - E2E;
-- validação de FFmpeg/fallback;
+- integração;
+- FFmpeg/fallback quando aplicável;
 - build Windows;
 - PyInstaller;
 - instalador;
-- verificações essenciais de segurança.
+- persistência;
+- verificações essenciais de segurança;
+- atualização operacional.
 
 ### Runner Windows `PC`
 
-Manter o runner próprio para as validações que dependem do ambiente Windows real, FFmpeg, PyInstaller, Inno Setup e demais componentes específicos do produto.
+Manter o runner próprio para validações que dependem do ambiente Windows real, FFmpeg, PyInstaller, Inno Setup e demais componentes específicos do produto.
 
-A configuração permanente deve evitar que código arbitrário de forks ou workflows públicos inseguros consiga executar no runner.
+O runner não deve executar código arbitrário de forks ou workflows públicos inseguros.
 
-## 2. O que deve ser removido depois do release
+## 2. O que deve ser removido ou arquivado
 
-Somente após todos os gates finais e a publicação confirmada, remover:
+Os workflows e branches temporários usados exclusivamente na auditoria de 2026-09-08 devem ser tratados como histórico. Não devem ser recriados como pipelines permanentes apenas para repetir a primeira publicação.
 
-- `tmp-public-candidate-e2e.yml`;
-- `tmp-public-candidate-full-validation.yml`;
-- workflows temporários equivalentes criados para a auditoria;
-- branches temporárias de auditoria;
-- scripts de diagnóstico que não tenham utilidade permanente;
-- artefatos/documentos duplicados ou exclusivamente operacionais da primeira publicação.
+Também devem ser arquivados ou eliminados, quando comprovadamente sem utilidade futura:
 
-**Nenhuma limpeza temporária deve ocorrer antes da aprovação final.**
+- scripts temporários de auditoria;
+- artefatos duplicados;
+- documentos operacionais redundantes da primeira publicação.
 
-## 3. Separar CI de auditoria de release
+As evidências necessárias devem ser preservadas antes de qualquer limpeza.
 
-### CI permanente
+## 3. Separar certificação, desenvolvimento e updater
 
-Pergunta respondida:
-
-> O código novo continua funcionando?
-
-Fluxo esperado:
-
-`push/PR → compile → testes → E2E → resultado`
-
-Build/installer pode ser executado nos níveis apropriados.
-
-### Auditoria de release
+### Certificação pública
 
 Pergunta respondida:
 
-> Esta versão específica pode ser publicada?
+> O estado público certificado atende à cadeia oficial Parts 01–09?
 
-Fluxo esperado:
+Fluxo:
 
-`release candidate → security scan → dependency review → full validation → build → installer → revisão final de árvore/histórico → tag → publicação`
+`candidato público → Parts 01–09 → resultado`
 
-A auditoria de release não precisa ser executada integralmente a cada commit.
+### Desenvolvimento/build/diagnóstico
+
+Pergunta respondida:
+
+> Esta alteração ou módulo funciona, pode ser construído e pode ser diagnosticado com evidência suficiente?
+
+Fluxo modular:
+
+`módulo + modo → preparação → testes → build → installer → persistência → diagnóstico → relatório`
+
+### Atualizador
+
+Pergunta respondida:
+
+> Uma instalação A consegue detectar, baixar, validar e instalar uma versão B mais nova?
+
+Fluxo:
+
+`Release A → Release B → detecção → SHA-256 → updater → reinício → versão B → update_completed`
 
 ## 4. Simplificação dos scripts
 
-Objetivo aproximado para `.github/scripts/`:
+Os scripts devem ser reutilizáveis e possuir responsabilidades claras. A implementação universal deve descobrir módulos e capacidades em vez de manter uma lista fixa de módulos no workflow.
 
-```text
-.github/
-├── workflows/
-│   ├── validation.yml
-│   ├── build.yml
-│   └── release.yml
-└── scripts/
-    ├── prepare-e2e.ps1
-    ├── test-runner.ps1
-    └── build-windows.ps1
-```
-
-Cada script deve ter uma responsabilidade clara. Evitar duplicação e scripts criados somente para contornar falhas históricas do primeiro release.
+Quando um módulo declarar uma capacidade específica, a camada universal a executa. Quando a capacidade não for aplicável, o resultado deve ser `NOT_APPLICABLE`.
 
 ## 5. Simplificação do uso do runner
 
-O runner `PC` deve ser reservado para tarefas que realmente precisam dele.
+O runner `PC` deve ser reservado para tarefas que realmente precisam do ambiente Windows real.
 
-Quando segurança, disponibilidade e arquitetura permitirem, testes genéricos podem usar runners GitHub-hosted e somente Windows/E2E/build específicos devem depender do `PC`.
-
-Não usar `windows-latest` como substituto de uma validação que explicitamente exige o ambiente real do `PC`.
+Quando segurança, disponibilidade e arquitetura permitirem, testes genéricos podem usar runners GitHub-hosted. Validações que exigem o ambiente real do `PC` devem continuar explicitamente vinculadas a ele.
 
 ## 6. Destino da `public-candidate`
 
-`public-candidate` deve ser tratada como área de preparação, não como branch permanente obrigatória.
+`public-candidate` continua sendo uma área de preparação para promoções controladas. Não é necessário tratá-la como uma branch de desenvolvimento permanente do produto público.
 
-Após o release, a operação normal deve voltar para:
+Fluxo normal:
 
 ```text
-feature branch → PR → main → release/tag
+ProjectKrypton privado
+        ↓
+validação
+        ↓
+public-candidate
+        ↓
+validação final necessária
+        ↓
+Project_Krypton/main
 ```
 
-Para releases futuros, branches de release ou tags RC podem ser criadas temporariamente quando necessário e removidas após o ciclo.
+Correções urgentes feitas diretamente em `main` público devem ser reproduzidas no privado após validação.
 
 ## 7. Simplificação documental
 
-Os documentos detalhados da primeira auditoria devem ser preservados como histórico, mas a documentação operacional principal deve ser reduzida para algo próximo de:
+A documentação operacional principal deve apontar para uma referência consolidada de estado e para documentos específicos de arquitetura e operação.
 
-```text
-docs/
-├── RELEASE.md
-├── SECURITY.md
-└── DEVELOPMENT.md
-```
+Os documentos datados de 2026-09-08 devem permanecer preservados como histórico da primeira publicação, mas não devem ser interpretados como estado atual quando contiverem gates ou pendências já encerrados.
 
-Os relatórios específicos da primeira publicação podem ser arquivados, por exemplo:
+## 8. Regra para falhas
 
-```text
-docs/archive/release-2026-09-08.md
-```
-
-Não apagar evidências de auditoria; apenas impedir que o histórico operacional polua a documentação cotidiana.
-
-## 8. Regra para falhas do CI
-
-Depois do release, uma falha deve ser investigada nesta ordem:
+Depois da publicação, uma falha deve ser investigada nesta ordem:
 
 1. o produto está errado?
 2. o teste está errado?
@@ -144,43 +148,36 @@ Depois do release, uma falha deve ser investigada nesta ordem:
 
 Evitar acumular workarounds no CI para fazer um teste vermelho parecer verde.
 
-## 9. Estado desejado
+## 9. Runtime de referência
 
-O fluxo operacional final deve ser simples:
+A arquitetura universal de desenvolvimento adota **Node 24.x LTS** como baseline quando Node for aplicável.
+
+A versão de patch efetivamente utilizada deve ser registrada em cada execução. Não se deve fixar um patch antigo quando uma versão 24.x LTS mais recente estiver disponível e compatível.
+
+## 10. Estado desejado
 
 ```text
-commit
+alteração
   ↓
-CI
+workflow de desenvolvimento
   ↓
-passou
+testes + build + diagnóstico
   ↓
-merge
+evidências preservadas
   ↓
-release
+validação proporcional
   ↓
-build + security + validation
+public-candidate
   ↓
-tag vX.Y.Z
+certificação Parts 01–09 quando necessária
   ↓
 publicação
 ```
 
-O objetivo é que a complexidade excepcional desta primeira publicação não vire dívida operacional permanente.
+O updater permanece como validação operacional específica e separada.
 
-## 10. Critério de encerramento da limpeza
+## Relação com a primeira publicação
 
-A simplificação pós-release estará concluída quando:
+A primeira publicação pública **não está bloqueada**. Os gates FULL, E2E/security, build, installer e certificação final foram concluídos posteriormente ao estado registrado neste documento.
 
-- workflows temporários tiverem sido removidos;
-- branches temporárias tiverem sido removidas;
-- CI oficial estiver consolidado;
-- scripts duplicados tiverem sido eliminados;
-- documentação operacional estiver enxuta;
-- histórico da primeira auditoria estiver preservado;
-- runner `PC` estiver protegido e reservado às tarefas apropriadas;
-- um novo release puder ser executado sem repetir a infraestrutura especial criada para 2026-09-08.
-
-## Relação com o release atual
-
-Este documento é um **plano futuro**. O release público atual continua bloqueado até que os critérios registrados em `PUBLICATION-STATUS.md` sejam satisfeitos. Em particular, o FULL e o E2E/security finais precisam ser executados diretamente sobre `public-candidate` no ambiente elegível.
+Este plano orienta a simplificação e evolução pós-release; não constitui requisito adicional para manter a publicação inicial válida.
