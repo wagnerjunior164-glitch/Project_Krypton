@@ -4,18 +4,37 @@ Data da revisão: 2026-09-11
 
 ## Estado atual
 
-**Candidato público validado — fase de consolidação e preparação da publicação.**
+**PUBLICADO — versão pública inicial do ProjectKrypton disponível em `main`.**
 
-A branch `public-candidate` continua sendo a área controlada de preparação. O repositório público utiliza uma raiz Git nova e não recebe o histórico, branches ou tags do repositório privado.
+A certificação técnica do candidato público foi concluída para as Parts 01–09 e o conteúdo certificado de `public-candidate` foi publicado diretamente na branch `main` do repositório público `wagnerjunior164-glitch/Project_Krypton`.
 
-A pendência operacional registrada em 2026-09-08 foi encerrada: o workflow oficial `.github/workflows/public-candidate-final-validation.yml` foi executado e concluído com sucesso sobre o candidato público. Esse workflow é a autoridade atual para a certificação das Parts 01–09; a Part 10 permanece fora da validação oficial, conforme documentação específica.
+A publicação preserva o repositório privado `wagnerjunior164-glitch/ProjectKrypton` separadamente. O repositório público mantém sua raiz Git própria e não recebeu o histórico, branches ou tags privadas.
 
-## Validações aprovadas
+## Publicação realizada
+
+- Repositório público: `wagnerjunior164-glitch/Project_Krypton`.
+- Branch pública publicada: `main`.
+- Commit publicado: `3d8e3bd762ad2a87a63cc931f51b2fa19e33f0e4`.
+- Branch de origem preservada: `public-candidate`.
+- O `main` público foi atualizado para o mesmo commit certificado presente em `public-candidate`.
+- O repositório privado `ProjectKrypton` não foi alterado pela publicação.
+
+## Certificação técnica
+
+O workflow oficial `.github/workflows/public-candidate-final-validation.yml` foi concluído com sucesso sobre o candidato público. Ele clona diretamente `wagnerjunior164-glitch/Project_Krypton`, confirma a identidade do commit, calcula hashes e executa sequencialmente as Parts 01–09 no runner Windows `PC`.
+
+**Resultado: Parts 01–09 certificadas.**
+
+A execução oficial termina deliberadamente na Part 09. A Part 10 permanece suspensa para reavaliação futura e não representa uma falha ou pendência da publicação atual.
+
+Não há necessidade de repetir Parts 01–09 apenas por causa da publicação. Eventuais problemas encontrados após a disponibilização pública serão tratados como correções normais do projeto, com validações específicas quando necessário.
+
+## Validações aprovadas anteriormente
 
 ### Preparação e segurança
 
 - Export privado de integridade: run `34250834831`, execução #4 — 24 arquivos, SHA-256 conferido.
-- FFmpeg/fallback real no runner `PC`: run `34253339675` — AAC `direct-play`, AC3 `transcoding`, fallback progressivo e cache reutilizado; `VALIDACAO_FFMPEG_FALLBACK_OK`.
+- FFmpeg/fallback real no runner `PC`: run `34253339675` — `VALIDACAO_FFMPEG_FALLBACK_OK`.
 - Smoke integrado público: run `34255010907` — 19 testes.
 - Retenção de artefatos: run `34258418198` — comportamento validado.
 - Varredura independente: run `34261465639`, job `102180192398` — **SUCCESS**, 39 arquivos, `VALIDACAO_INDEPENDENTE_PUBLIC_CANDIDATE_OK`.
@@ -23,73 +42,59 @@ A pendência operacional registrada em 2026-09-08 foi encerrada: o workflow ofic
 
 ### Build e execução pública
 
-- Build/installer público: run `34262011642`, job `102188593169` — **SUCCESS**, PyInstaller, updater e Inno Setup; `VALIDACAO_BUILD_INSTALLER_PUBLIC_CANDIDATE_OK`.
-- E2E público real: run `34275672859`, job `102227956236` — **SUCCESS**, runner `PC`, clone limpo, FFmpeg/FFprobe, login, biblioteca, scan, status e `tests/e2e_web_test.py`; `VALIDACAO_E2E_PUBLIC_CANDIDATE_OK`.
-- Full integrado histórico: run `34276601584`, job `102236534720` — **SUCCESS** no repositório privado. Esse run permanece como evidência histórica do pipeline completo e não substitui a certificação atual do candidato público.
-
-### Certificação oficial atual
-
-O workflow `.github/workflows/public-candidate-final-validation.yml` foi concluído com sucesso após a integração das Parts 01–09. O workflow clona diretamente `wagnerjunior164-glitch/Project_Krypton`, na ref solicitada (`public-candidate` por padrão), confirma a identidade do commit, calcula hashes e executa sequencialmente as Parts 01–09 no runner Windows `PC`.
-
-Resultado atual: **Parts 01–09 certificadas.**
-
-A execução oficial termina deliberadamente na Part 09. A documentação de Part 10 continua sendo de reavaliação futura e não representa uma falha ou pendência da certificação atual.
+- Build/installer público: run `34262011642`, job `102188593169` — **SUCCESS**.
+- E2E público real: run `34275672859`, job `102227956236` — **SUCCESS**, runner `PC`.
+- Full integrado histórico: run `34276601584`, job `102236534720` — **SUCCESS** no repositório privado; permanece como evidência histórica e não substitui a certificação direta do candidato público.
 
 ## Estado das correções de segurança
 
-As correções aplicadas após os primeiros lotes de publicação fazem parte do estado validado atual:
+As correções aplicadas durante a preparação pública fazem parte do estado publicado e certificado:
 
-1. `POST /api/setup/diagnostics` permanece disponível durante o setup inicial e, após `setup_completed=true`, exige administrador autenticado.
+1. `POST /api/setup/diagnostics` exige administrador autenticado após `setup_completed=true`.
 2. `KRYPTONPLAY_SECURE_COOKIES` permite habilitar `Secure` nos cookies sem quebrar o modo HTTP local por padrão.
 3. O reset administrativo de senha recebe `new_password`, armazena somente o hash, invalida sessões anteriores e não retorna `temporary_password`.
 4. `KryptonPlay/requirements.txt` está fixado em `fastapi==0.141.1`, `uvicorn[standard]==0.52.4` e `zeroconf==0.151.3`.
-5. O fluxo E2E de segurança foi ampliado para verificar diagnóstico autenticado/não autenticado, reset de senha e login com a nova senha.
+5. O fluxo E2E de segurança verifica diagnóstico autenticado/não autenticado, reset de senha e login com a nova senha.
 
-Essas alterações não estão mais pendentes de validação: foram incorporadas ao candidato que passou pela certificação oficial atual.
-
-## Integridade e rastreabilidade
-
-SHAs anteriormente confirmados na `public-candidate` permanecem registrados nos lotes históricos. O `.iss` contém `RunOnceId` após a correção do aviso do Inno Setup. O aviso operacional do PyInstaller sobre execução como administrador foi tratado como característica do ambiente do runner e não como falha mascarada de código.
-
-A certificação atual deve ser considerada superior aos registros históricos que ainda descrevem a árvore como pendente.
+Essas alterações foram incorporadas ao candidato certificado antes da publicação.
 
 ## Documentação histórica
 
-Os documentos de lotes datados de 2026-09-08 preservam o estado e as decisões daquela fase da auditoria. Quando algum deles disser que FULL/E2E/security, dependências ou release ainda estão pendentes, essa afirmação deve ser interpretada como **histórica**, não como estado atual.
+Os documentos de lotes datados de 2026-09-08 preservam o estado e as decisões daquela fase da auditoria. Quando algum deles disser que FULL/E2E/security, dependências ou release ainda estavam pendentes, essa afirmação deve ser interpretada como **histórica**.
 
 Em especial:
 
-- `PUBLICATION-BATCH-SECURITY-REVIEW-2026-09-08.md` registra a segurança antes da certificação final atual.
+- `PUBLICATION-BATCH-SECURITY-REVIEW-2026-09-08.md` registra a segurança antes da certificação final.
 - `PUBLICATION-BATCH-INTEGRATED-VALIDATION-2026-09-08.md` registra a validação funcional daquele lote.
 - `PUBLICATION-BATCH-FULL-VALIDATION-2026-09-08.md` registra o FULL histórico executado no repositório privado.
 - `PUBLICATION-BATCH-INDEPENDENT-SCAN-2026-09-08.md` registra a varredura independente daquele momento.
-- `PUBLICATION-LOG-003.md` e `PUBLICATION-LOG-004.md` são registros históricos das decisões de composição da árvore.
+- `PUBLICATION-LOG-003.md` e `PUBLICATION-LOG-004.md` registram decisões históricas de composição da árvore.
 
-Este arquivo é a referência consolidada para o estado atual.
+Este arquivo é a referência consolidada para o estado atual da publicação.
 
-## O que ainda não está concluído
+## Pós-publicação
 
-A certificação técnica Parts 01–09 está concluída. Restam atividades de **consolidação pós-certificação**, não novos gates funcionais:
+A partir deste ponto, o projeto entra em manutenção pública normal. Não existe um novo gate obrigatório antes de continuar o desenvolvimento.
 
-1. conferir a árvore pública final, histórico Git, branches e tags;
-2. confirmar que não existem dados específicos do ambiente privado introduzidos depois da última varredura;
-3. alinhar os documentos históricos para que não produzam uma leitura equivocada de que a certificação ainda está bloqueada;
-4. decidir e executar a limpeza dos workflows/branches temporários de auditoria, preservando antes as evidências necessárias;
-5. fazer a decisão final de publicação/merge para a branch pública principal somente depois dessa conferência;
-6. tratar licenciamento como decisão jurídica/documental separada, pois `LICENSING-STRATEGY.md` é uma estratégia e não uma aprovação jurídica.
+Se surgir algum problema real após a publicação:
+
+1. o problema será reproduzido e isolado;
+2. será aplicada uma correção mínima e rastreável;
+3. será executada somente a validação necessária para a alteração;
+4. a correção será publicada em novo commit.
+
+Não se deve reabrir automaticamente toda a cadeia Parts 01–09 para cada correção futura, salvo quando uma alteração modificar diretamente o escopo coberto por essas certificações e justificar nova validação completa.
 
 ## Part 10
 
-A Part 10 continua **suspensa para reavaliação futura**. Ela não é requisito da certificação atual e não deve ser adicionada ao workflow oficial sem nova decisão documentada.
-
-## Próxima etapa recomendada
-
-A partir deste estado, não devemos repetir Parts 01–09. O próximo trabalho deve ser uma **conferência final de release e limpeza controlada**: revisar árvore/histórico/branches/tags, revisar a documentação de publicação, preservar as evidências da certificação e só então decidir a publicação final.
+A Part 10 continua **suspensa para reavaliação futura**. Ela não é requisito da certificação atual nem condição para a publicação realizada em `main`.
 
 ## Decisão atual
 
-**CERTIFICAÇÃO TÉCNICA DO CANDIDATO PÚBLICO: APROVADA — PARTS 01–09.**
+**PUBLICAÇÃO PÚBLICA: CONCLUÍDA.**
 
-**RELEASE/PUBLICAÇÃO FINAL: em fase de consolidação pós-certificação; não repetir os gates já aprovados.**
+**CERTIFICAÇÃO TÉCNICA: APROVADA — PARTS 01–09.**
 
-A ausência de um identificador de run específico nesta página não invalida o resultado: o registro atual usa como autoridade o workflow oficial concluído. O identificador exato da execução final deve ser acrescentado quando estiver disponível no histórico de Actions, sem inventar um número.
+**REPOSITÓRIO PÚBLICO: `main` em `3d8e3bd762ad2a87a63cc931f51b2fa19e33f0e4`.**
+
+A partir de agora, correções e evoluções podem ser feitas normalmente no repositório público, com validação proporcional ao impacto de cada mudança.
